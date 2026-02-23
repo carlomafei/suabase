@@ -272,6 +272,7 @@ const Dashboard = () => {
                     allowDecimals={false}
                   />
                   <Tooltip
+                    cursor={false}
                     contentStyle={{
                       backgroundColor: "hsl(220, 18%, 7%)",
                       border: "1px solid hsl(220, 14%, 14%)",
