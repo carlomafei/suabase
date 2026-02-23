@@ -1,1 +1,10 @@
 project_id = "ntfpzslkdlrpcgrmxsay"
+
+[functions.bling-sync]
+verify_jwt = false
+
+[functions.data-broker]
+verify_jwt = false
+
+[functions.whatsapp]
+verify_jwt = false
