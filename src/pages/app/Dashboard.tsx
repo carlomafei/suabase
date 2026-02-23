@@ -1,15 +1,141 @@
+import { useEffect, useState, useCallback } from "react";
 import { useTenant } from "@/hooks/useTenant";
-import { Users, ShoppingBag, MessageCircle, TrendingUp } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  DollarSign,
+  Users,
+  ShoppingBag,
+  TrendingUp,
+  MessageCircle,
+  Loader2,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
-const stats = [
-  { label: "Contatos", value: "0", icon: Users, change: "+0%" },
-  { label: "Pedidos", value: "0", icon: ShoppingBag, change: "+0%" },
-  { label: "Mensagens", value: "0", icon: MessageCircle, change: "+0%" },
-  { label: "Recompra", value: "0%", icon: TrendingUp, change: "+0%" },
+interface DashboardData {
+  revenue: number;
+  totalContacts: number;
+  totalOrders: number;
+  avgTicket: number;
+  estimatedPotential: number;
+  ordersByMarketplace: { name: string; value: number }[];
+  whatsappEngagement: { name: string; enviadas: number; recebidas: number }[];
+}
+
+const CHART_COLORS = [
+  "hsl(152, 76%, 46%)",
+  "hsl(200, 70%, 50%)",
+  "hsl(280, 60%, 55%)",
+  "hsl(35, 90%, 55%)",
+  "hsl(350, 70%, 55%)",
+  "hsl(170, 60%, 45%)",
 ];
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
 const Dashboard = () => {
-  const { tenantName } = useTenant();
+  const { tenantId, tenantName } = useTenant();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboard = useCallback(async () => {
+    if (!tenantId) { setLoading(false); return; }
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+    const [ordersRes, contactsRes, messagesRes] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("total_value, marketplace, order_date")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", startOfMonth),
+      supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("messages")
+        .select("direction, created_at")
+        .eq("tenant_id", tenantId)
+        .eq("channel", "whatsapp")
+        .gte("created_at", startOfMonth),
+    ]);
+
+    const orders = ordersRes.data || [];
+    const totalContacts = contactsRes.count || 0;
+    const messages = messagesRes.data || [];
+
+    const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
+    const totalOrders = orders.length;
+    const avgTicket = totalOrders > 0 ? revenue / totalOrders : 0;
+    const estimatedPotential = totalContacts * avgTicket * 0.15;
+
+    // Orders by marketplace
+    const marketplaceMap: Record<string, number> = {};
+    orders.forEach((o) => {
+      const mp = o.marketplace || "Direto";
+      marketplaceMap[mp] = (marketplaceMap[mp] || 0) + 1;
+    });
+    const ordersByMarketplace = Object.entries(marketplaceMap).map(([name, value]) => ({ name, value }));
+
+    // WhatsApp engagement by week
+    const weekMap: Record<string, { enviadas: number; recebidas: number }> = {};
+    messages.forEach((m) => {
+      const d = new Date(m.created_at);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const key = `${weekStart.getDate().toString().padStart(2, "0")}/${(weekStart.getMonth() + 1).toString().padStart(2, "0")}`;
+      if (!weekMap[key]) weekMap[key] = { enviadas: 0, recebidas: 0 };
+      if (m.direction === "outbound") weekMap[key].enviadas++;
+      else weekMap[key].recebidas++;
+    });
+    const whatsappEngagement = Object.entries(weekMap).map(([name, v]) => ({ name, ...v }));
+    if (whatsappEngagement.length === 0) {
+      whatsappEngagement.push(
+        { name: "Sem. 1", enviadas: 0, recebidas: 0 },
+        { name: "Sem. 2", enviadas: 0, recebidas: 0 },
+        { name: "Sem. 3", enviadas: 0, recebidas: 0 },
+        { name: "Sem. 4", enviadas: 0, recebidas: 0 }
+      );
+    }
+    if (ordersByMarketplace.length === 0) {
+      ordersByMarketplace.push({ name: "Nenhum", value: 0 });
+    }
+
+    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement });
+    setLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const stats = [
+    { label: "Faturamento", value: formatCurrency(data?.revenue ?? 0), icon: DollarSign, color: "text-primary" },
+    { label: "Clientes capturados", value: String(data?.totalContacts ?? 0), icon: Users, color: "text-blue-400" },
+    { label: "Ticket médio", value: formatCurrency(data?.avgTicket ?? 0), icon: ShoppingBag, color: "text-amber-400" },
+    { label: "Potencial estimado", value: formatCurrency(data?.estimatedPotential ?? 0), icon: TrendingUp, color: "text-purple-400" },
+  ];
 
   return (
     <div>
@@ -20,23 +146,114 @@ const Dashboard = () => {
         </p>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map(({ label, value, icon: Icon, change }) => (
-          <div key={label} className="card-gradient rounded-xl border border-border/50 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">{label}</span>
-              <Icon className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <p className="font-display text-2xl font-bold">{value}</p>
-            <p className="text-xs text-primary mt-1">{change} este mês</p>
-          </div>
+        {stats.map(({ label, value, icon: Icon, color }) => (
+          <Card key={label} className="border-border/50">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <Icon className={`h-4 w-4 ${color}`} />
+              </div>
+              <p className="font-display text-2xl font-bold">{value}</p>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      <div className="card-gradient rounded-xl border border-border/50 p-8 text-center">
-        <p className="text-muted-foreground">
-          Configure suas integrações em <strong className="text-foreground">Configurações</strong> para começar a sincronizar pedidos e contatos.
-        </p>
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Orders by Marketplace */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-display flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4 text-primary" />
+              Pedidos por Marketplace
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data?.ordersByMarketplace || []}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={4}
+                    dataKey="value"
+                    nameKey="name"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {(data?.ordersByMarketplace || []).map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                    formatter={(value: string) => <span className="text-xs text-muted-foreground">{value}</span>}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(220, 18%, 7%)",
+                      border: "1px solid hsl(220, 14%, 14%)",
+                      borderRadius: "8px",
+                      color: "hsl(0, 0%, 95%)",
+                      fontSize: "12px",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* WhatsApp Engagement */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-display flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-primary" />
+              Engajamento WhatsApp
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data?.whatsappEngagement || []} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 14%)" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
+                    axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                  />
+                  <YAxis
+                    tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
+                    axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "hsl(220, 18%, 7%)",
+                      border: "1px solid hsl(220, 14%, 14%)",
+                      borderRadius: "8px",
+                      color: "hsl(0, 0%, 95%)",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend
+                    iconType="circle"
+                    formatter={(value: string) => <span className="text-xs text-muted-foreground">{value}</span>}
+                  />
+                  <Bar dataKey="enviadas" fill="hsl(152, 76%, 46%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="recebidas" fill="hsl(200, 70%, 50%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
