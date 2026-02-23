@@ -51,7 +51,7 @@ const MARKETPLACE_COLORS: Record<string, string> = {
   "Mercado Livre": "hsl(52, 100%, 50%)",  // amarelo ML
   "Amazon": "hsl(33, 100%, 50%)",         // laranja Amazon
   "Magalu": "hsl(210, 100%, 45%)",        // azul Magalu
-  "TikTok": "hsl(340, 82%, 52%)",         // rosa/vermelho TikTok
+  "TikTok": "hsl(152, 76%, 46%)",         // Verde TikTok (conforme solicitado)
   "Kwai": "hsl(25, 100%, 52%)",           // laranja Kwai
   "Direto": "hsl(152, 76%, 46%)",         // verde padrão do app
 };
