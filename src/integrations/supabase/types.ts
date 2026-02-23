@@ -596,30 +596,42 @@ export type Database = {
       tenants: {
         Row: {
           created_at: string
+          custom_domain: string | null
           id: string
+          is_active: boolean
           logo_url: string | null
           name: string
           plan: string
+          primary_color: string | null
+          secondary_color: string | null
           settings: Json | null
           slug: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          custom_domain?: string | null
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name: string
           plan?: string
+          primary_color?: string | null
+          secondary_color?: string | null
           settings?: Json | null
           slug: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          custom_domain?: string | null
           id?: string
+          is_active?: boolean
           logo_url?: string | null
           name?: string
           plan?: string
+          primary_color?: string | null
+          secondary_color?: string | null
           settings?: Json | null
           slug?: string
           updated_at?: string
