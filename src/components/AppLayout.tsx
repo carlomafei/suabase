@@ -163,8 +163,8 @@ const AppLayout = () => {
           </Button>
         </div>
 
-        {/* Green accent line at bottom */}
-        <div className="h-[2px] bg-gradient-to-r from-primary/60 via-primary to-primary/60" />
+        {/* Accent line at bottom */}
+        <div className="h-[1px] bg-border" />
       </header>
 
       {/* Mobile drawer */}
