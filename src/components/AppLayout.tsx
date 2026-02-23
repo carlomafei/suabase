@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
+import { useBranding } from "@/hooks/useBranding";
 import {
   Database,
   LayoutDashboard,
@@ -31,6 +32,7 @@ const navItems = [
 const AppLayout = () => {
   const { signOut } = useAuth();
   const { tenantName } = useTenant();
+  const { branding } = useBranding();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -60,9 +62,15 @@ const AppLayout = () => {
       >
         {/* Logo */}
         <div className="flex items-center gap-2 px-4 h-16 border-b border-border shrink-0">
-          <Database className="h-6 w-6 text-primary shrink-0" />
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt="Logo" className="h-7 max-w-[120px] object-contain shrink-0" />
+          ) : (
+            <Database className="h-6 w-6 text-primary shrink-0" />
+          )}
           {!collapsed && (
-            <span className="font-display font-bold text-lg truncate">Sua Base</span>
+            <span className="font-display font-bold text-lg truncate">
+              {branding.hide_platform_branding ? branding.platform_name : branding.platform_name || "Sua Base"}
+            </span>
           )}
         </div>
 
@@ -124,8 +132,12 @@ const AppLayout = () => {
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-2 ml-3">
-            <Database className="h-5 w-5 text-primary" />
-            <span className="font-display font-bold">Sua Base</span>
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt="Logo" className="h-5 max-w-[100px] object-contain" />
+            ) : (
+              <Database className="h-5 w-5 text-primary" />
+            )}
+            <span className="font-display font-bold">{branding.platform_name || "Sua Base"}</span>
           </div>
         </header>
 
