@@ -87,7 +87,7 @@ const AppLayout = () => {
           )}
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1 justify-center">
+          <nav className="hidden lg:flex items-center gap-0.5 flex-1 justify-end">
             {visibleItems.map(({ to, icon: Icon, label, end }) => (
               <NavLink
                 key={to}
@@ -95,7 +95,7 @@ const AppLayout = () => {
                 end={end}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors whitespace-nowrap",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors whitespace-nowrap",
                     isActive
                       ? "bg-primary text-primary-foreground font-medium"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -112,7 +112,7 @@ const AppLayout = () => {
                 to="/admin"
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors whitespace-nowrap",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs transition-colors whitespace-nowrap",
                     isActive
                       ? "bg-destructive text-destructive-foreground font-medium"
                       : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
