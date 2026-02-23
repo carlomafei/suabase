@@ -14,16 +14,584 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      automations: {
+        Row: {
+          actions: Json | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          tenant_id: string
+          trigger_config: Json | null
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          actions?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          tenant_id: string
+          trigger_config?: Json | null
+          trigger_type: string
+          updated_at?: string
+        }
+        Update: {
+          actions?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          tenant_id?: string
+          trigger_config?: Json | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string
+          email: string | null
+          enriched_at: string | null
+          external_id: string | null
+          id: string
+          metadata: Json | null
+          name: string
+          phone: string | null
+          source: string | null
+          tags: string[] | null
+          tenant_id: string
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          enriched_at?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          phone?: string | null
+          source?: string | null
+          tags?: string[] | null
+          tenant_id: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          enriched_at?: string | null
+          external_id?: string | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          phone?: string | null
+          source?: string | null
+          tags?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          assigned_to: string | null
+          contact_id: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          position: number
+          stage_id: string
+          tenant_id: string
+          title: string
+          updated_at: string
+          value: number | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          position?: number
+          stage_id: string
+          tenant_id: string
+          title: string
+          updated_at?: string
+          value?: number | null
+        }
+        Update: {
+          assigned_to?: string | null
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          position?: number
+          stage_id?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "crm_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_pipelines: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          tenant_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_pipelines_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          pipeline_id: string
+          position: number
+          tenant_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          pipeline_id: string
+          position?: number
+          tenant_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          pipeline_id?: string
+          position?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "crm_pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_stages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          channel: string
+          contact_id: string | null
+          content: string | null
+          created_at: string
+          direction: string
+          id: string
+          metadata: Json | null
+          sent_at: string | null
+          sentiment: string | null
+          status: string
+          template_id: string | null
+          tenant_id: string
+        }
+        Insert: {
+          channel?: string
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string | null
+          sentiment?: string | null
+          status?: string
+          template_id?: string | null
+          tenant_id: string
+        }
+        Update: {
+          channel?: string
+          contact_id?: string | null
+          content?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          metadata?: Json | null
+          sent_at?: string | null
+          sentiment?: string | null
+          status?: string
+          template_id?: string | null
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          contact_id: string | null
+          created_at: string
+          external_id: string | null
+          id: string
+          items: Json | null
+          marketplace: string | null
+          metadata: Json | null
+          order_date: string | null
+          status: string
+          synced_from: string | null
+          tenant_id: string
+          total_value: number
+          updated_at: string
+        }
+        Insert: {
+          contact_id?: string | null
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          items?: Json | null
+          marketplace?: string | null
+          metadata?: Json | null
+          order_date?: string | null
+          status?: string
+          synced_from?: string | null
+          tenant_id: string
+          total_value?: number
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string | null
+          created_at?: string
+          external_id?: string | null
+          id?: string
+          items?: Json | null
+          marketplace?: string | null
+          metadata?: Json | null
+          order_date?: string | null
+          status?: string
+          synced_from?: string | null
+          tenant_id?: string
+          total_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tenant_integrations: {
+        Row: {
+          created_at: string
+          credentials: Json | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          provider: string
+          settings: Json | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          provider: string
+          settings?: Json | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          provider?: string
+          settings?: Json | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_integrations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenant_users: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["tenant_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["tenant_role"]
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["tenant_role"]
+          tenant_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          logo_url: string | null
+          name: string
+          plan: string
+          settings: Json | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          plan?: string
+          settings?: Json | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          plan?: string
+          settings?: Json | null
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      whatsapp_templates: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          name: string
+          tenant_id: string
+          updated_at: string
+          variables: string[] | null
+        }
+        Insert: {
+          category?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          tenant_id: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          variables?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
+      has_tenant_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["tenant_role"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_tenant_member: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      tenant_role: "owner" | "admin" | "member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +718,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      tenant_role: ["owner", "admin", "member"],
+    },
   },
 } as const
