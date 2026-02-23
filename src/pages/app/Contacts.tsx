@@ -9,11 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Users, DollarSign, Crown, Loader2, Search, Sparkles,
+  Users, DollarSign, Crown, Loader2, Search, Sparkles, Shield, ShieldOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getQualityLabel, formatCpf, getSourceLabel } from "@/lib/business-rules";
+import { Progress } from "@/components/ui/progress";
 
 interface ContactRow {
   id: string;
@@ -25,6 +28,9 @@ interface ContactRow {
   last_order_date: string | null;
   crm_stage: string | null;
   enriched_at: string | null;
+  quality_score: number;
+  opt_out_whatsapp: boolean;
+  source: string | null;
 }
 
 const formatCurrency = (v: number) =>
@@ -43,7 +49,7 @@ const Contacts = () => {
     // Fetch contacts + their orders aggregate + latest CRM deal stage
     const { data: contactsData } = await supabase
       .from("contacts")
-      .select("id, name, cpf_cnpj, whatsapp, email, enriched_at, created_at")
+      .select("id, name, cpf_cnpj, whatsapp, email, enriched_at, created_at, quality_score, opt_out_whatsapp, source")
       .eq("tenant_id", tenantId)
       .order("name")
       .limit(500);
@@ -92,7 +98,7 @@ const Contacts = () => {
       }
     });
 
-    const rows: ContactRow[] = contactsData.map((c) => ({
+    const rows: ContactRow[] = contactsData.map((c: any) => ({
       id: c.id,
       name: c.name,
       cpf_cnpj: c.cpf_cnpj,
@@ -102,6 +108,9 @@ const Contacts = () => {
       last_order_date: orderAgg[c.id]?.lastDate || null,
       crm_stage: stageMap[c.id] || null,
       enriched_at: c.enriched_at,
+      quality_score: c.quality_score ?? 0,
+      opt_out_whatsapp: c.opt_out_whatsapp ?? false,
+      source: c.source ?? null,
     }));
 
     setContacts(rows);
@@ -205,8 +214,9 @@ const Contacts = () => {
                   <TableHead className="text-xs">CPF/CNPJ</TableHead>
                   <TableHead className="text-xs">WhatsApp</TableHead>
                   <TableHead className="text-xs">Email</TableHead>
-                  <TableHead className="text-xs text-right">Total gasto</TableHead>
-                  <TableHead className="text-xs">Última compra</TableHead>
+                  <TableHead className="text-xs">Total gasto</TableHead>
+                  <TableHead className="text-xs">Qualidade</TableHead>
+                  <TableHead className="text-xs">Origem</TableHead>
                   <TableHead className="text-xs">Status CRM</TableHead>
                   <TableHead className="text-xs text-right">Ações</TableHead>
                 </TableRow>
@@ -214,8 +224,20 @@ const Contacts = () => {
               <TableBody>
                 {filtered.map((c) => (
                   <TableRow key={c.id} className="border-border/50">
-                    <TableCell className="text-xs font-medium max-w-[180px] truncate">{c.name}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground font-mono">{c.cpf_cnpj || "—"}</TableCell>
+                    <TableCell className="text-xs font-medium max-w-[180px] truncate">
+                      <div className="flex items-center gap-1.5">
+                        {c.name}
+                        {c.opt_out_whatsapp && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <ShieldOff className="h-3 w-3 text-destructive" />
+                            </TooltipTrigger>
+                            <TooltipContent>Opt-out WhatsApp</TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{c.cpf_cnpj ? formatCpf(c.cpf_cnpj) : "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {c.whatsapp ? (
                         <span className="text-primary">{c.whatsapp}</span>
@@ -229,10 +251,19 @@ const Contacts = () => {
                     <TableCell className="text-xs text-right font-medium whitespace-nowrap">
                       {formatCurrency(c.total_spent)}
                     </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const q = getQualityLabel(c.quality_score);
+                        return (
+                          <div className="flex items-center gap-2 min-w-[100px]">
+                            <Progress value={c.quality_score} className="h-1.5 w-14" />
+                            <span className={`text-xs font-medium ${q.color}`}>{c.quality_score}%</span>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {c.last_order_date
-                        ? format(new Date(c.last_order_date), "dd/MM/yyyy", { locale: ptBR })
-                        : "—"}
+                      {getSourceLabel(c.source)}
                     </TableCell>
                     <TableCell>
                       {c.crm_stage ? (

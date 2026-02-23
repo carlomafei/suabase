@@ -68,7 +68,11 @@ export type Database = {
           id: string
           metadata: Json | null
           name: string
+          opt_out_email: boolean | null
+          opt_out_sms: boolean | null
+          opt_out_whatsapp: boolean | null
           phone: string | null
+          quality_score: number | null
           source: string | null
           tags: string[] | null
           tenant_id: string
@@ -84,7 +88,11 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name: string
+          opt_out_email?: boolean | null
+          opt_out_sms?: boolean | null
+          opt_out_whatsapp?: boolean | null
           phone?: string | null
+          quality_score?: number | null
           source?: string | null
           tags?: string[] | null
           tenant_id: string
@@ -100,7 +108,11 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name?: string
+          opt_out_email?: boolean | null
+          opt_out_sms?: boolean | null
+          opt_out_whatsapp?: boolean | null
           phone?: string | null
+          quality_score?: number | null
           source?: string | null
           tags?: string[] | null
           tenant_id?: string
@@ -523,6 +535,7 @@ export type Database = {
           last_sync_at: string | null
           provider: string
           settings: Json | null
+          sync_cursor: string | null
           tenant_id: string
           updated_at: string
         }
@@ -534,6 +547,7 @@ export type Database = {
           last_sync_at?: string | null
           provider: string
           settings?: Json | null
+          sync_cursor?: string | null
           tenant_id: string
           updated_at?: string
         }
@@ -545,6 +559,7 @@ export type Database = {
           last_sync_at?: string | null
           provider?: string
           settings?: Json | null
+          sync_cursor?: string | null
           tenant_id?: string
           updated_at?: string
         }
@@ -725,6 +740,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_whatsapp_24h_window: {
+        Args: { _contact_id: string; _tenant_id: string }
+        Returns: boolean
+      }
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_tenant_role: {
         Args: { _role: string; _tenant_id: string; _user_id: string }
