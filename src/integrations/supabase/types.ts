@@ -563,7 +563,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
-          role: Database["public"]["Enums"]["tenant_role"]
+          role: string
           tenant_id: string
           user_id: string
         }
@@ -571,7 +571,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          role?: Database["public"]["Enums"]["tenant_role"]
+          role?: string
           tenant_id: string
           user_id: string
         }
@@ -579,7 +579,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
-          role?: Database["public"]["Enums"]["tenant_role"]
+          role?: string
           tenant_id?: string
           user_id?: string
         }
@@ -715,20 +715,21 @@ export type Database = {
     Functions: {
       get_user_tenant_ids: { Args: { _user_id: string }; Returns: string[] }
       has_tenant_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["tenant_role"]
-          _tenant_id: string
-          _user_id: string
-        }
+        Args: { _role: string; _tenant_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_tenant_role_or_above: {
+        Args: { _min_role: string; _tenant_id: string; _user_id: string }
         Returns: boolean
       }
       is_tenant_member: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
       }
+      role_level: { Args: { _role: string }; Returns: number }
     }
     Enums: {
-      tenant_role: "owner" | "admin" | "member"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -855,8 +856,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      tenant_role: ["owner", "admin", "member"],
-    },
+    Enums: {},
   },
 } as const
