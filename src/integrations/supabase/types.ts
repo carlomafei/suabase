@@ -279,6 +279,7 @@ export type Database = {
           direction: string
           id: string
           metadata: Json | null
+          provider_message_id: string | null
           sent_at: string | null
           sentiment: string | null
           status: string
@@ -293,6 +294,7 @@ export type Database = {
           direction?: string
           id?: string
           metadata?: Json | null
+          provider_message_id?: string | null
           sent_at?: string | null
           sentiment?: string | null
           status?: string
@@ -307,6 +309,7 @@ export type Database = {
           direction?: string
           id?: string
           metadata?: Json | null
+          provider_message_id?: string | null
           sent_at?: string | null
           sentiment?: string | null
           status?: string
