@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import {
   BarChart,
   Bar,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -44,6 +46,7 @@ interface DashboardData {
   pendingJobs: number;
   failedJobs: number;
   recommendations: { id: string; type: string; title: string; description: string; confidence: number }[];
+  monthlyRevenue: { name: string; faturamento: number }[];
 }
 
 const MARKETPLACE_COLORS: Record<string, string> = {
@@ -72,8 +75,9 @@ const Dashboard = () => {
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, recsRes] = await Promise.all([
+    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, recsRes, allOrdersRes] = await Promise.all([
       supabase
         .from("orders")
         .select("total_value, marketplace, order_date")
@@ -105,9 +109,15 @@ const Dashboard = () => {
         .eq("status", "pending")
         .order("confidence", { ascending: false })
         .limit(5),
+      supabase
+        .from("orders")
+        .select("total_value, order_date, created_at")
+        .eq("tenant_id", tenantId)
+        .gte("created_at", sixMonthsAgo),
     ]);
 
     const orders = ordersRes.data || [];
+    const allOrders = allOrdersRes.data || [];
     const totalContacts = contactsRes.count || 0;
     const messages = messagesRes.data || [];
     const usage = (usageRes.data || []) as { metric: string; current_value: number; limit_value: number | null }[];
@@ -153,7 +163,24 @@ const Dashboard = () => {
       ordersByMarketplace.push({ name: "Nenhum", value: 0 });
     }
 
-    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, recommendations });
+    // Monthly revenue (last 6 months)
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const monthlyMap: Record<string, number> = {};
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = monthNames[d.getMonth()];
+      monthlyMap[key] = 0;
+    }
+    allOrders.forEach((o) => {
+      const d = new Date(o.order_date || o.created_at);
+      const key = monthNames[d.getMonth()];
+      if (key in monthlyMap) {
+        monthlyMap[key] += Number(o.total_value || 0);
+      }
+    });
+    const monthlyRevenue = Object.entries(monthlyMap).map(([name, faturamento]) => ({ name, faturamento }));
+
+    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, recommendations, monthlyRevenue });
     setLoading(false);
   }, [tenantId]);
 
@@ -197,6 +224,59 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Monthly Revenue Chart */}
+      <Card className="border-border/50 mb-6">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-display flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-primary" />
+            Faturamento Mensal
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={data?.monthlyRevenue || []}>
+                <defs>
+                  <linearGradient id="colorFaturamento" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(152, 76%, 46%)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(152, 76%, 46%)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 14%)" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
+                  axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                />
+                <YAxis
+                  tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
+                  axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                />
+                <Tooltip
+                  cursor={false}
+                  contentStyle={{
+                    backgroundColor: "hsl(220, 18%, 7%)",
+                    border: "1px solid hsl(220, 14%, 14%)",
+                    borderRadius: "8px",
+                    color: "hsl(0, 0%, 95%)",
+                    fontSize: "12px",
+                  }}
+                  formatter={(value: number) => [formatCurrency(value), "Faturamento"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="faturamento"
+                  stroke="hsl(152, 76%, 46%)"
+                  strokeWidth={2}
+                  fill="url(#colorFaturamento)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
