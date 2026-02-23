@@ -8,8 +8,16 @@ import {
   TrendingUp,
   MessageCircle,
   Loader2,
+  Zap,
+  Sparkles,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 import {
   BarChart,
   Bar,
@@ -32,6 +40,10 @@ interface DashboardData {
   estimatedPotential: number;
   ordersByMarketplace: { name: string; value: number }[];
   whatsappEngagement: { name: string; enviadas: number; recebidas: number }[];
+  usage: { metric: string; current_value: number; limit_value: number | null }[];
+  pendingJobs: number;
+  failedJobs: number;
+  recommendations: { id: string; type: string; title: string; description: string; confidence: number }[];
 }
 
 const CHART_COLORS = [
@@ -57,7 +69,7 @@ const Dashboard = () => {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-    const [ordersRes, contactsRes, messagesRes] = await Promise.all([
+    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, recsRes] = await Promise.all([
       supabase
         .from("orders")
         .select("total_value, marketplace, order_date")
@@ -73,11 +85,32 @@ const Dashboard = () => {
         .eq("tenant_id", tenantId)
         .eq("channel", "whatsapp")
         .gte("created_at", startOfMonth),
+      supabase
+        .from("usage_tracking")
+        .select("metric, current_value, limit_value")
+        .eq("tenant_id", tenantId),
+      supabase
+        .from("job_queue")
+        .select("status")
+        .eq("tenant_id", tenantId)
+        .in("status", ["pending", "failed"]),
+      supabase
+        .from("ai_recommendations")
+        .select("id, type, title, description, confidence")
+        .eq("tenant_id", tenantId)
+        .eq("status", "pending")
+        .order("confidence", { ascending: false })
+        .limit(5),
     ]);
 
     const orders = ordersRes.data || [];
     const totalContacts = contactsRes.count || 0;
     const messages = messagesRes.data || [];
+    const usage = (usageRes.data || []) as { metric: string; current_value: number; limit_value: number | null }[];
+    const jobs = jobsRes.data || [];
+    const pendingJobs = jobs.filter((j: any) => j.status === "pending").length;
+    const failedJobs = jobs.filter((j: any) => j.status === "failed").length;
+    const recommendations = (recsRes.data || []) as any[];
 
     const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
     const totalOrders = orders.length;
@@ -116,7 +149,7 @@ const Dashboard = () => {
       ordersByMarketplace.push({ name: "Nenhum", value: 0 });
     }
 
-    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement });
+    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, recommendations });
     setLoading(false);
   }, [tenantId]);
 
@@ -252,6 +285,129 @@ const Dashboard = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Usage Monitoring + AI Recommendations */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        {/* Usage & Jobs Monitor */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-display flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Monitoramento de Uso
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Job queue status */}
+            <div className="flex items-center gap-3">
+              <Zap className="h-4 w-4 text-muted-foreground" />
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-muted-foreground">Jobs pendentes</span>
+                  <Badge variant={data?.pendingJobs ? "default" : "secondary"} className="text-xs">
+                    {data?.pendingJobs || 0}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            {(data?.failedJobs ?? 0) > 0 && (
+              <div className="flex items-center gap-3 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-xs text-destructive">{data?.failedJobs} jobs falharam</span>
+              </div>
+            )}
+
+            {/* Usage metrics */}
+            {(data?.usage || []).length > 0 ? (
+              data!.usage.map((u) => {
+                const pct = u.limit_value ? Math.min(100, (u.current_value / u.limit_value) * 100) : 0;
+                return (
+                  <div key={u.metric}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs text-muted-foreground capitalize">{u.metric.replace(/_/g, " ")}</span>
+                      <span className="text-xs font-medium">
+                        {u.current_value}{u.limit_value ? ` / ${u.limit_value}` : ""}
+                      </span>
+                    </div>
+                    {u.limit_value && (
+                      <Progress value={pct} className="h-1.5" />
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-xs text-muted-foreground">Sem dados de uso registrados ainda.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* AI Cross-sell & Upsell Recommendations */}
+        <Card className="border-border/50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-display flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                Recomendações IA
+              </CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7"
+                onClick={async () => {
+                  if (!tenantId) return;
+                  toast.loading("Gerando recomendações com IA...");
+                  try {
+                    const { error } = await supabase.functions.invoke("ai-recommendations", {
+                      body: { tenant_id: tenantId },
+                    });
+                    if (error) throw error;
+                    toast.dismiss();
+                    toast.success("Recomendações geradas!");
+                    fetchDashboard();
+                  } catch {
+                    toast.dismiss();
+                    toast.error("Erro ao gerar recomendações");
+                  }
+                }}
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Gerar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {(data?.recommendations || []).length > 0 ? (
+              <div className="space-y-3">
+                {data!.recommendations.map((r) => (
+                  <div key={r.id} className="p-3 rounded-lg border border-border/50 bg-muted/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${r.type === "upsell" ? "border-purple-400/50 text-purple-400" : "border-primary/50 text-primary"}`}
+                      >
+                        {r.type === "upsell" ? "Upsell" : "Cross-sell"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(r.confidence * 100)}% confiança
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{r.title}</p>
+                    {r.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">
+                  Clique em "Gerar" para criar recomendações de cross-sell e upsell com IA.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
