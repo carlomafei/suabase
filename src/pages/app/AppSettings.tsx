@@ -1,14 +1,19 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Palette, Plug, Users, Sliders } from "lucide-react";
+import { Palette, Plug, Users, Sliders, CreditCard } from "lucide-react";
 import BrandingSettings from "./BrandingSettings";
+import PlanSettings from "./PlanSettings";
 
 const AppSettings = () => (
   <div>
     <h1 className="font-display text-2xl md:text-3xl font-bold mb-2">Configurações</h1>
     <p className="text-muted-foreground mb-8">Integrações, equipe e preferências</p>
 
-    <Tabs defaultValue="branding" className="w-full">
+    <Tabs defaultValue="plan" className="w-full">
       <TabsList className="mb-6">
+        <TabsTrigger value="plan" className="gap-2">
+          <CreditCard className="h-4 w-4" />
+          Plano
+        </TabsTrigger>
         <TabsTrigger value="branding" className="gap-2">
           <Palette className="h-4 w-4" />
           Branding
@@ -27,6 +32,9 @@ const AppSettings = () => (
         </TabsTrigger>
       </TabsList>
 
+      <TabsContent value="plan">
+        <PlanSettings />
+      </TabsContent>
       <TabsContent value="branding">
         <BrandingSettings />
       </TabsContent>
