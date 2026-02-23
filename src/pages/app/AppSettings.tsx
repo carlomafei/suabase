@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Palette, Plug, Users, Sliders, CreditCard } from "lucide-react";
 import BrandingSettings from "./BrandingSettings";
 import PlanSettings from "./PlanSettings";
+import IntegrationSettings from "./IntegrationSettings";
 
 const AppSettings = () => (
   <div>
@@ -39,9 +40,7 @@ const AppSettings = () => (
         <BrandingSettings />
       </TabsContent>
       <TabsContent value="integrations">
-        <div className="card-gradient rounded-xl border border-border/50 p-8 text-center">
-          <p className="text-muted-foreground">Em breve: integração com Bling, Tiny e outros ERPs.</p>
-        </div>
+        <IntegrationSettings />
       </TabsContent>
       <TabsContent value="team">
         <div className="card-gradient rounded-xl border border-border/50 p-8 text-center">
