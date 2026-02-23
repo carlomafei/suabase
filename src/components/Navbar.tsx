@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Database } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Navbar = () => {
   return (
@@ -17,12 +18,16 @@ const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-            Entrar
-          </Button>
-          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-display font-medium">
-            Começar grátis
-          </Button>
+          <Link to="/auth">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              Entrar
+            </Button>
+          </Link>
+          <Link to="/auth?mode=signup">
+            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 font-display font-medium">
+              Começar grátis
+            </Button>
+          </Link>
         </div>
       </div>
     </nav>

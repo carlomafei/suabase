@@ -1,5 +1,6 @@
 import { ArrowRight, Shield, Users, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   return (
@@ -36,10 +37,12 @@ const HeroSection = () => {
 
           {/* CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <Button size="lg" className="text-lg px-8 py-6 font-display font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_30px_hsl(152_76%_46%/0.3)]">
-              Comece grátis
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
+            <Link to="/auth?mode=signup">
+              <Button size="lg" className="text-lg px-8 py-6 font-display font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_30px_hsl(152_76%_46%/0.3)] w-full sm:w-auto">
+                Comece grátis
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
             <Button variant="outline" size="lg" className="text-lg px-8 py-6 font-display border-muted-foreground/20 text-foreground hover:bg-secondary">
               Ver como funciona
             </Button>
