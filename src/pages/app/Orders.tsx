@@ -39,6 +39,7 @@ interface Order {
   marketplace: string | null;
   order_date: string | null;
   created_at: string;
+  items?: any;
   contact_name?: string;
   contact_cpf?: string;
   contact_whatsapp?: string;
@@ -86,6 +87,7 @@ const Orders = () => {
     let query = supabase
       .from("orders")
       .select("*, contacts(name, cpf_cnpj, whatsapp)")
+
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(200);
@@ -117,6 +119,7 @@ const Orders = () => {
         marketplace: o.marketplace,
         order_date: o.order_date,
         created_at: o.created_at,
+        items: o.items,
         contact_name: o.contacts?.name,
         contact_cpf: o.contacts?.cpf_cnpj,
         contact_whatsapp: o.contacts?.whatsapp,
@@ -245,6 +248,7 @@ const Orders = () => {
                   <TableHead className="text-xs">Data</TableHead>
                   <TableHead className="text-xs">ID Pedido</TableHead>
                   <TableHead className="text-xs">Cliente</TableHead>
+                  <TableHead className="text-xs">Produto</TableHead>
                   <TableHead className="text-xs">CPF/CNPJ</TableHead>
                   <TableHead className="text-xs">Marketplace</TableHead>
                   <TableHead className="text-xs text-right">Valor</TableHead>
@@ -268,6 +272,15 @@ const Orders = () => {
                       </TableCell>
                       <TableCell className="text-xs font-medium max-w-[160px] truncate">
                         {order.contact_name || "—"}
+                      </TableCell>
+                      <TableCell className="text-xs max-w-[200px] truncate" title={
+                        Array.isArray(order.items)
+                          ? order.items.map((i: any) => i.descricao || i.nome || i.description || i.name).filter(Boolean).join(", ")
+                          : "—"
+                      }>
+                        {Array.isArray(order.items)
+                          ? order.items.map((i: any) => i.descricao || i.nome || i.description || i.name).filter(Boolean).join(", ") || "—"
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono">
                         {order.contact_cpf || "—"}
