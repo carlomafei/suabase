@@ -8,13 +8,20 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AppLayout from "./components/AppLayout";
+import AdminLayout from "./components/AdminLayout";
 import Dashboard from "./pages/app/Dashboard";
 import Contacts from "./pages/app/Contacts";
 import Orders from "./pages/app/Orders";
 import CRM from "./pages/app/CRM";
 import Messages from "./pages/app/Messages";
 import Automations from "./pages/app/Automations";
+import Analytics from "./pages/app/Analytics";
 import AppSettings from "./pages/app/AppSettings";
+import AdminMetrics from "./pages/admin/AdminMetrics";
+import AdminTenants from "./pages/admin/AdminTenants";
+import AdminPlans from "./pages/admin/AdminPlans";
+import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
+import AdminBilling from "./pages/admin/AdminBilling";
 
 const queryClient = new QueryClient();
 
@@ -41,7 +48,22 @@ const App = () => (
             <Route path="crm" element={<CRM />} />
             <Route path="messages" element={<Messages />} />
             <Route path="automations" element={<Automations />} />
+            <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<AppSettings />} />
+          </Route>
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminMetrics />} />
+            <Route path="tenants" element={<AdminTenants />} />
+            <Route path="plans" element={<AdminPlans />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+            <Route path="billing" element={<AdminBilling />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

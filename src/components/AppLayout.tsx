@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useTenant } from "@/hooks/useTenant";
 import { useBranding } from "@/hooks/useBranding";
+import { usePermissions, Permission } from "@/hooks/usePermissions";
 import {
   Database,
   LayoutDashboard,
@@ -14,25 +15,37 @@ import {
   LogOut,
   ChevronLeft,
   Menu,
+  BarChart3,
+  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true },
-  { to: "/app/contacts", icon: Users, label: "Contatos" },
-  { to: "/app/orders", icon: ShoppingBag, label: "Pedidos" },
-  { to: "/app/crm", icon: Kanban, label: "CRM" },
-  { to: "/app/messages", icon: MessageCircle, label: "Mensagens" },
-  { to: "/app/automations", icon: Zap, label: "Automações" },
-  { to: "/app/settings", icon: Settings, label: "Configurações" },
+type NavItem = {
+  to: string;
+  icon: typeof LayoutDashboard;
+  label: string;
+  end?: boolean;
+  permission?: Permission;
+};
+
+const navItems: NavItem[] = [
+  { to: "/app", icon: LayoutDashboard, label: "Dashboard", end: true, permission: "view_dashboard" },
+  { to: "/app/orders", icon: ShoppingBag, label: "Pedidos", permission: "view_orders" },
+  { to: "/app/contacts", icon: Users, label: "Clientes", permission: "view_contacts" },
+  { to: "/app/crm", icon: Kanban, label: "CRM", permission: "use_crm" },
+  { to: "/app/automations", icon: Zap, label: "Automações", permission: "create_automations" },
+  { to: "/app/messages", icon: MessageCircle, label: "Comunicação", permission: "send_messages" },
+  { to: "/app/analytics", icon: BarChart3, label: "Análises", permission: "view_metrics" },
+  { to: "/app/settings", icon: Settings, label: "Configurações", permission: "manage_settings" },
 ];
 
 const AppLayout = () => {
   const { signOut } = useAuth();
   const { tenantName } = useTenant();
   const { branding } = useBranding();
+  const { can, isSuperAdmin, roleLabel } = usePermissions();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -41,6 +54,10 @@ const AppLayout = () => {
     await signOut();
     navigate("/");
   };
+
+  const visibleItems = navItems.filter(
+    (item) => !item.permission || can(item.permission)
+  );
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -74,17 +91,18 @@ const AppLayout = () => {
           )}
         </div>
 
-        {/* Tenant name */}
+        {/* Tenant name + role */}
         {!collapsed && tenantName && (
           <div className="px-4 py-3 border-b border-border">
             <p className="text-xs text-muted-foreground">Empresa</p>
             <p className="text-sm font-medium truncate">{tenantName}</p>
+            <p className="text-xs text-primary/80 mt-0.5">{roleLabel}</p>
           </div>
         )}
 
         {/* Nav */}
         <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
-          {navItems.map(({ to, icon: Icon, label, end }) => (
+          {visibleItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -103,6 +121,28 @@ const AppLayout = () => {
               {!collapsed && <span>{label}</span>}
             </NavLink>
           ))}
+
+          {/* Super Admin link */}
+          {isSuperAdmin && (
+            <>
+              <div className="my-3 mx-3 border-t border-border" />
+              <NavLink
+                to="/admin"
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors",
+                    isActive
+                      ? "bg-destructive/10 text-destructive font-medium"
+                      : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  )
+                }
+              >
+                <Shield className="h-5 w-5 shrink-0" />
+                {!collapsed && <span>Super Admin</span>}
+              </NavLink>
+            </>
+          )}
         </nav>
 
         {/* Footer */}
