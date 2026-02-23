@@ -46,14 +46,18 @@ interface DashboardData {
   recommendations: { id: string; type: string; title: string; description: string; confidence: number }[];
 }
 
-const CHART_COLORS = [
-  "hsl(152, 76%, 46%)",
-  "hsl(200, 70%, 50%)",
-  "hsl(280, 60%, 55%)",
-  "hsl(35, 90%, 55%)",
-  "hsl(350, 70%, 55%)",
-  "hsl(170, 60%, 45%)",
-];
+const MARKETPLACE_COLORS: Record<string, string> = {
+  "Shopee": "hsl(16, 100%, 50%)",        // laranja-avermelhado Shopee
+  "Mercado Livre": "hsl(52, 100%, 50%)",  // amarelo ML
+  "Amazon": "hsl(33, 100%, 50%)",         // laranja Amazon
+  "Magalu": "hsl(210, 100%, 45%)",        // azul Magalu
+  "TikTok": "hsl(340, 82%, 52%)",         // rosa/vermelho TikTok
+  "Kwai": "hsl(25, 100%, 52%)",           // laranja Kwai
+  "Direto": "hsl(152, 76%, 46%)",         // verde padrão do app
+};
+
+const getMarketplaceColor = (name: string): string =>
+  MARKETPLACE_COLORS[name] || "hsl(220, 10%, 55%)";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -220,8 +224,8 @@ const Dashboard = () => {
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                   >
-                    {(data?.ordersByMarketplace || []).map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    {(data?.ordersByMarketplace || []).map((entry, i) => (
+                      <Cell key={i} fill={getMarketplaceColor(entry.name)} />
                     ))}
                   </Pie>
                   <Legend
