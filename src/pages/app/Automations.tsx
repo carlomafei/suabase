@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Zap, Clock, MessageCircle, GitBranch, Send, Pause, Sparkles, ArrowRight,
-  Plus, Trash2, Loader2, Play, Square, ChevronDown, ChevronRight,
+  Plus, Trash2, Loader2, Play, Square, ChevronDown, ChevronRight, Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,9 @@ const Automations = () => {
   const [selectedTrigger, setSelectedTrigger] = useState<TriggerType>("new_order");
   const [flowNodes, setFlowNodes] = useState<AutomationNode[]>([]);
   const [saving, setSaving] = useState(false);
+  const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [stages, setStages] = useState<{ id: string; name: string; pipeline_name: string }[]>([]);
 
   const fetchAutomations = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -84,6 +88,20 @@ const Automations = () => {
 
   useEffect(() => { fetchAutomations(); }, [fetchAutomations]);
 
+  // Fetch templates and stages for action configs
+  useEffect(() => {
+    if (!tenantId) return;
+    const fetchMeta = async () => {
+      const [tplRes, stgRes] = await Promise.all([
+        supabase.from("whatsapp_templates").select("id, name").eq("tenant_id", tenantId).eq("is_active", true),
+        supabase.from("crm_stages").select("id, name, pipeline_id, crm_pipelines(name)").eq("tenant_id", tenantId).order("position"),
+      ]);
+      setTemplates((tplRes.data || []).map((t: any) => ({ id: t.id, name: t.name })));
+      setStages((stgRes.data || []).map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.crm_pipelines?.name || "" })));
+    };
+    fetchMeta();
+  }, [tenantId]);
+
   const openEditor = (auto: Automation) => {
     setEditing(auto);
     setNewName(auto.name);
@@ -99,11 +117,17 @@ const Automations = () => {
     setEditing(null);
   };
 
+  const updateNodeConfig = (nodeId: string, config: Record<string, any>) => {
+    setFlowNodes((prev) => prev.map((n) => n.id === nodeId ? { ...n, config: { ...n.config, ...config } } : n));
+  };
+
   const addAction = (type: ActionType) => {
+    const newId = crypto.randomUUID();
     setFlowNodes((prev) => [
       ...prev,
-      { id: crypto.randomUUID(), type: "action", actionType: type, config: {} },
+      { id: newId, type: "action", actionType: type, config: {} },
     ]);
+    setExpandedNodeId(newId);
   };
 
   const removeNode = (id: string) => {
@@ -263,6 +287,7 @@ const Automations = () => {
             {flowNodes.map((node, i) => {
               const actionInfo = ACTIONS.find((a) => a.type === node.actionType);
               const ActionIcon = actionInfo?.icon || Zap;
+              const isExpanded = expandedNodeId === node.id;
               const borderColor = node.actionType === "classify_ai" ? "border-purple-400/40" :
                                   node.actionType === "wait_response" ? "border-amber-400/40" :
                                   node.actionType === "send_template" ? "border-primary/40" : "border-blue-400/40";
@@ -272,40 +297,221 @@ const Automations = () => {
 
               return (
                 <div key={node.id} className="flex flex-col items-center gap-4">
-                  <Card className={cn("w-72 border-2 relative group", borderColor, bgColor)}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
-                        node.actionType === "classify_ai" ? "bg-purple-400/15" :
-                        node.actionType === "wait_response" ? "bg-amber-400/15" :
-                        node.actionType === "send_template" ? "bg-primary/15" : "bg-blue-400/15"
-                      )}>
-                        <ActionIcon className={cn("h-5 w-5", actionInfo?.color)} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-display font-semibold text-sm">{actionInfo?.label}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {node.actionType === "wait_response" ? "Timeout: 1h" :
-                           node.actionType === "classify_ai" ? "Positivo / Neutro / Negativo" :
-                           node.actionType === "send_template" ? "Selecionar template" :
-                           "Selecionar etapa"}
-                        </p>
-                      </div>
+                  <Card className={cn("w-80 border-2 relative group", borderColor, bgColor)}>
+                    <CardContent className="p-0">
                       <button
-                        onClick={() => removeNode(node.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
+                        onClick={() => setExpandedNodeId(isExpanded ? null : node.id)}
+                        className="w-full p-4 flex items-center gap-3 text-left"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
+                          node.actionType === "classify_ai" ? "bg-purple-400/15" :
+                          node.actionType === "wait_response" ? "bg-amber-400/15" :
+                          node.actionType === "send_template" ? "bg-primary/15" : "bg-blue-400/15"
+                        )}>
+                          <ActionIcon className={cn("h-5 w-5", actionInfo?.color)} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-display font-semibold text-sm">{actionInfo?.label}</p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {node.actionType === "send_template" && node.config.template_name ? node.config.template_name :
+                             node.actionType === "wait_response" ? `Timeout: ${node.config.timeout || "1"}${node.config.timeout_unit === "min" ? " min" : "h"}` :
+                             node.actionType === "classify_ai" ? (node.config.labels || "Positivo, Neutro, Negativo") :
+                             node.actionType === "move_stage" && node.config.stage_name ? node.config.stage_name :
+                             "Clique para configurar"}
+                          </p>
+                        </div>
+                        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isExpanded && "rotate-180")} />
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeNode(node.id); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-destructive hover:bg-destructive/10 rounded transition-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </button>
-                    </CardContent>
 
-                    {/* Classify AI branches */}
-                    {node.actionType === "classify_ai" && (
-                      <div className="px-4 pb-3 flex gap-2 justify-center">
-                        <Badge className="bg-primary/15 text-primary text-xs">Pos.</Badge>
-                        <Badge className="bg-amber-400/15 text-amber-400 text-xs">Neu.</Badge>
-                        <Badge className="bg-destructive/15 text-destructive text-xs">Neg.</Badge>
-                      </div>
-                    )}
+                      {/* Config panel */}
+                      {isExpanded && (
+                        <div className="border-t border-border/50 p-4 space-y-3">
+                          {node.actionType === "send_template" && (
+                            <>
+                              <div>
+                                <Label className="text-xs">Template WhatsApp</Label>
+                                <Select
+                                  value={node.config.template_id || ""}
+                                  onValueChange={(v) => {
+                                    const tpl = templates.find((t) => t.id === v);
+                                    updateNodeConfig(node.id, { template_id: v, template_name: tpl?.name || "" });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue placeholder="Selecionar template" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {templates.length === 0 && (
+                                      <SelectItem value="_none" disabled>Nenhum template cadastrado</SelectItem>
+                                    )}
+                                    {templates.map((t) => (
+                                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Mensagem personalizada (opcional)</Label>
+                                <Textarea
+                                  value={node.config.custom_message || ""}
+                                  onChange={(e) => updateNodeConfig(node.id, { custom_message: e.target.value })}
+                                  placeholder="Texto adicional ou variáveis..."
+                                  className="text-xs mt-1 min-h-[60px]"
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {node.actionType === "wait_response" && (
+                            <>
+                              <div className="flex gap-2">
+                                <div className="flex-1">
+                                  <Label className="text-xs">Tempo de espera</Label>
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={node.config.timeout || "1"}
+                                    onChange={(e) => updateNodeConfig(node.id, { timeout: e.target.value })}
+                                    className="h-8 text-xs mt-1"
+                                  />
+                                </div>
+                                <div className="w-24">
+                                  <Label className="text-xs">Unidade</Label>
+                                  <Select
+                                    value={node.config.timeout_unit || "hour"}
+                                    onValueChange={(v) => updateNodeConfig(node.id, { timeout_unit: v })}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs mt-1">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="min">Minutos</SelectItem>
+                                      <SelectItem value="hour">Horas</SelectItem>
+                                      <SelectItem value="day">Dias</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Ação se expirar</Label>
+                                <Select
+                                  value={node.config.on_timeout || "skip"}
+                                  onValueChange={(v) => updateNodeConfig(node.id, { on_timeout: v })}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="skip">Pular para próxima ação</SelectItem>
+                                    <SelectItem value="stop">Parar automação</SelectItem>
+                                    <SelectItem value="retry">Reenviar mensagem</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
+                          )}
+
+                          {node.actionType === "classify_ai" && (
+                            <>
+                              <div>
+                                <Label className="text-xs">Rótulos de classificação</Label>
+                                <Input
+                                  value={node.config.labels || "Positivo, Neutro, Negativo"}
+                                  onChange={(e) => updateNodeConfig(node.id, { labels: e.target.value })}
+                                  placeholder="Positivo, Neutro, Negativo"
+                                  className="h-8 text-xs mt-1"
+                                />
+                                <p className="text-[10px] text-muted-foreground mt-1">Separe os rótulos por vírgula</p>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Prompt de contexto (opcional)</Label>
+                                <Textarea
+                                  value={node.config.ai_prompt || ""}
+                                  onChange={(e) => updateNodeConfig(node.id, { ai_prompt: e.target.value })}
+                                  placeholder="Ex: Classifique o sentimento da mensagem do cliente..."
+                                  className="text-xs mt-1 min-h-[60px]"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Modelo IA</Label>
+                                <Select
+                                  value={node.config.ai_model || "gemini-flash"}
+                                  onValueChange={(v) => updateNodeConfig(node.id, { ai_model: v })}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="gemini-flash">Gemini Flash (rápido)</SelectItem>
+                                    <SelectItem value="gemini-pro">Gemini Pro (preciso)</SelectItem>
+                                    <SelectItem value="gpt-mini">GPT Mini (equilibrado)</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
+                          )}
+
+                          {node.actionType === "move_stage" && (
+                            <>
+                              <div>
+                                <Label className="text-xs">Etapa de destino</Label>
+                                <Select
+                                  value={node.config.stage_id || ""}
+                                  onValueChange={(v) => {
+                                    const stg = stages.find((s) => s.id === v);
+                                    updateNodeConfig(node.id, { stage_id: v, stage_name: stg ? `${stg.pipeline_name} → ${stg.name}` : "" });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-8 text-xs mt-1">
+                                    <SelectValue placeholder="Selecionar etapa" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {stages.length === 0 && (
+                                      <SelectItem value="_none" disabled>Nenhuma etapa cadastrada</SelectItem>
+                                    )}
+                                    {stages.map((s) => (
+                                      <SelectItem key={s.id} value={s.id}>
+                                        {s.pipeline_name} → {s.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Observação (opcional)</Label>
+                                <Input
+                                  value={node.config.note || ""}
+                                  onChange={(e) => updateNodeConfig(node.id, { note: e.target.value })}
+                                  placeholder="Motivo da movimentação..."
+                                  className="h-8 text-xs mt-1"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Classify AI branches */}
+                      {node.actionType === "classify_ai" && !isExpanded && (
+                        <div className="px-4 pb-3 flex gap-2 justify-center">
+                          {(node.config.labels || "Positivo, Neutro, Negativo").split(",").slice(0, 4).map((label: string, li: number) => (
+                            <Badge key={li} className={cn("text-xs",
+                              li === 0 ? "bg-primary/15 text-primary" :
+                              li === 1 ? "bg-amber-400/15 text-amber-400" :
+                              "bg-destructive/15 text-destructive"
+                            )}>
+                              {label.trim().substring(0, 6)}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
                   </Card>
 
                   {i < flowNodes.length - 1 && <div className="w-px h-6 bg-border" />}
