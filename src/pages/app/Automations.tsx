@@ -65,7 +65,7 @@ const Automations = () => {
   const [flowNodes, setFlowNodes] = useState<AutomationNode[]>([]);
   const [saving, setSaving] = useState(false);
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
-  const [templates, setTemplates] = useState<{ id: string; name: string }[]>([]);
+  const [templates, setTemplates] = useState<{ id: string; name: string; content: string; variables: string[] | null }[]>([]);
   const [stages, setStages] = useState<{ id: string; name: string; pipeline_name: string }[]>([]);
 
   const fetchAutomations = useCallback(async () => {
@@ -93,10 +93,10 @@ const Automations = () => {
     if (!tenantId) return;
     const fetchMeta = async () => {
       const [tplRes, stgRes] = await Promise.all([
-        supabase.from("whatsapp_templates").select("id, name").eq("tenant_id", tenantId).eq("is_active", true),
+        supabase.from("whatsapp_templates").select("id, name, content, variables").eq("tenant_id", tenantId).eq("is_active", true),
         supabase.from("crm_stages").select("id, name, pipeline_id, crm_pipelines(name)").eq("tenant_id", tenantId).order("position"),
       ]);
-      setTemplates((tplRes.data || []).map((t: any) => ({ id: t.id, name: t.name })));
+      setTemplates((tplRes.data || []).map((t: any) => ({ id: t.id, name: t.name, content: t.content || "", variables: t.variables || null })));
       setStages((stgRes.data || []).map((s: any) => ({ id: s.id, name: s.name, pipeline_name: s.crm_pipelines?.name || "" })));
     };
     fetchMeta();
@@ -332,41 +332,63 @@ const Automations = () => {
                       {/* Config panel */}
                       {isExpanded && (
                         <div className="border-t border-border/50 p-4 space-y-3">
-                          {node.actionType === "send_template" && (
-                            <>
-                              <div>
-                                <Label className="text-xs">Template WhatsApp</Label>
-                                <Select
-                                  value={node.config.template_id || ""}
-                                  onValueChange={(v) => {
-                                    const tpl = templates.find((t) => t.id === v);
-                                    updateNodeConfig(node.id, { template_id: v, template_name: tpl?.name || "" });
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 text-xs mt-1">
-                                    <SelectValue placeholder="Selecionar template" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {templates.length === 0 && (
-                                      <SelectItem value="_none" disabled>Nenhum template cadastrado</SelectItem>
-                                    )}
-                                    {templates.map((t) => (
-                                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                          {node.actionType === "send_template" && (() => {
+                            const selectedTpl = templates.find((t) => t.id === node.config.template_id);
+                            return (
+                              <>
+                                <div>
+                                  <Label className="text-xs">Template WhatsApp</Label>
+                                  <Select
+                                    value={node.config.template_id || ""}
+                                    onValueChange={(v) => {
+                                      const tpl = templates.find((t) => t.id === v);
+                                      updateNodeConfig(node.id, {
+                                        template_id: v,
+                                        template_name: tpl?.name || "",
+                                        custom_message: tpl?.content || "",
+                                      });
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs mt-1">
+                                      <SelectValue placeholder="Selecionar template" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {templates.length === 0 && (
+                                        <SelectItem value="_none" disabled>Nenhum template cadastrado</SelectItem>
+                                      )}
+                                      {templates.map((t) => (
+                                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {selectedTpl && selectedTpl.variables && selectedTpl.variables.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    <span className="text-xs text-muted-foreground">Variáveis:</span>
+                                    {selectedTpl.variables.map((v) => (
+                                      <Badge key={v} variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+                                        {"{{" + v + "}}"}
+                                      </Badge>
                                     ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div>
-                                <Label className="text-xs">Mensagem personalizada (opcional)</Label>
-                                <Textarea
-                                  value={node.config.custom_message || ""}
-                                  onChange={(e) => updateNodeConfig(node.id, { custom_message: e.target.value })}
-                                  placeholder="Texto adicional ou variáveis..."
-                                  className="text-xs mt-1 min-h-[60px]"
-                                />
-                              </div>
-                            </>
-                          )}
+                                  </div>
+                                )}
+
+                                <div>
+                                  <Label className="text-xs">Mensagem personalizada</Label>
+                                  <Textarea
+                                    value={node.config.custom_message || ""}
+                                    onChange={(e) => updateNodeConfig(node.id, { custom_message: e.target.value })}
+                                    placeholder={selectedTpl ? selectedTpl.content : "Selecione um template acima..."}
+                                    className="text-xs mt-1 min-h-[120px] font-mono leading-relaxed"
+                                  />
+                                  <p className="text-[10px] text-muted-foreground mt-1">
+                                    Edite a mensagem acima para personalizar. As variáveis serão substituídas automaticamente.
+                                  </p>
+                                </div>
+                              </>
+                            );
+                          })()}
 
                           {node.actionType === "wait_response" && (
                             <>
