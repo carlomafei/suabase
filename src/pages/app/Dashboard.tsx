@@ -9,7 +9,7 @@ import {
   MessageCircle,
   Loader2,
   Zap,
-  Sparkles,
+  
   Activity,
   AlertTriangle,
 } from "lucide-react";
@@ -45,7 +45,7 @@ interface DashboardData {
   usage: { metric: string; current_value: number; limit_value: number | null }[];
   pendingJobs: number;
   failedJobs: number;
-  recommendations: { id: string; type: string; title: string; description: string; confidence: number }[];
+  
   monthlyRevenue: { name: string; faturamento: number }[];
 }
 
@@ -77,7 +77,7 @@ const Dashboard = () => {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
-    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, recsRes, allOrdersRes] = await Promise.all([
+    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, allOrdersRes] = await Promise.all([
       supabase
         .from("orders")
         .select("total_value, marketplace, order_date")
@@ -103,13 +103,6 @@ const Dashboard = () => {
         .eq("tenant_id", tenantId)
         .in("status", ["pending", "failed"]),
       supabase
-        .from("ai_recommendations")
-        .select("id, type, title, description, confidence")
-        .eq("tenant_id", tenantId)
-        .eq("status", "pending")
-        .order("confidence", { ascending: false })
-        .limit(5),
-      supabase
         .from("orders")
         .select("total_value, order_date, created_at")
         .eq("tenant_id", tenantId)
@@ -124,7 +117,7 @@ const Dashboard = () => {
     const jobs = jobsRes.data || [];
     const pendingJobs = jobs.filter((j: any) => j.status === "pending").length;
     const failedJobs = jobs.filter((j: any) => j.status === "failed").length;
-    const recommendations = (recsRes.data || []) as any[];
+    
 
     const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
     const totalOrders = orders.length;
@@ -180,7 +173,7 @@ const Dashboard = () => {
     });
     const monthlyRevenue = Object.entries(monthlyMap).map(([name, faturamento]) => ({ name, faturamento }));
 
-    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, recommendations, monthlyRevenue });
+    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, monthlyRevenue });
     setLoading(false);
   }, [tenantId]);
 
@@ -374,7 +367,7 @@ const Dashboard = () => {
         </Card>
       </div>
 
-      {/* Usage Monitoring + AI Recommendations */}
+      {/* Usage Monitoring */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* Usage & Jobs Monitor */}
         <Card className="border-border/50">
@@ -428,73 +421,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* AI Cross-sell & Upsell Recommendations */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-display flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-400" />
-                Recomendações IA
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-xs h-7"
-                onClick={async () => {
-                  if (!tenantId) return;
-                  toast.loading("Gerando recomendações com IA...");
-                  try {
-                    const { error } = await supabase.functions.invoke("ai-recommendations", {
-                      body: { tenant_id: tenantId },
-                    });
-                    if (error) throw error;
-                    toast.dismiss();
-                    toast.success("Recomendações geradas!");
-                    fetchDashboard();
-                  } catch {
-                    toast.dismiss();
-                    toast.error("Erro ao gerar recomendações");
-                  }
-                }}
-              >
-                <Sparkles className="h-3 w-3 mr-1" />
-                Gerar
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {(data?.recommendations || []).length > 0 ? (
-              <div className="space-y-3">
-                {data!.recommendations.map((r) => (
-                  <div key={r.id} className="p-3 rounded-lg border border-border/50 bg-muted/20">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${r.type === "upsell" ? "border-purple-400/50 text-purple-400" : "border-primary/50 text-primary"}`}
-                      >
-                        {r.type === "upsell" ? "Upsell" : "Cross-sell"}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {Math.round(r.confidence * 100)}% confiança
-                      </span>
-                    </div>
-                    <p className="text-sm font-medium">{r.title}</p>
-                    {r.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <Sparkles className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">
-                  Clique em "Gerar" para criar recomendações de cross-sell e upsell com IA.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
