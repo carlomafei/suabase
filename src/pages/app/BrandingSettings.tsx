@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { useBranding, type BrandingSettings } from "@/hooks/useBranding";
 import { useTenant } from "@/hooks/useTenant";
+import { usePlan } from "@/hooks/usePlan";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, FileText, Eye } from "lucide-react";
+import { Palette, Type, Image, Globe, FileText, Eye, Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const COLOR_PRESETS = [
   { label: "Verde", value: "152 76% 46%" },
@@ -57,8 +60,12 @@ function hexToHsl(hex: string): string {
 const BrandingSettings = () => {
   const { branding, loading, saveBranding } = useBranding();
   const { role } = useTenant();
+  const { currentPlan } = usePlan();
   const [form, setForm] = useState<BrandingSettings>(branding);
   const [saving, setSaving] = useState(false);
+
+  const isStarterOrFree = !currentPlan || ["starter", "free", "trial", "teste"].includes(currentPlan.slug?.toLowerCase() || "");
+  const isOwnerOrAdmin = role === "owner" || role === "admin";
 
   useEffect(() => {
     setForm(branding);
@@ -72,7 +79,6 @@ const BrandingSettings = () => {
     else toast.error("Erro ao salvar branding.");
   };
 
-  const isOwnerOrAdmin = role === "owner" || role === "admin";
 
   if (loading) {
     return (
@@ -109,7 +115,15 @@ const BrandingSettings = () => {
         </section>
 
         {/* Logo */}
-        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-4">
+        <section className={cn("card-gradient rounded-xl border border-border/50 p-6 space-y-4 relative", isStarterOrFree && "opacity-60 pointer-events-none")}>
+          {isStarterOrFree && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl bg-background/50 backdrop-blur-[1px]">
+              <Badge variant="outline" className="gap-1.5 text-xs px-3 py-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                Disponível em planos superiores
+              </Badge>
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <Image className="h-5 w-5 text-primary" />
             <h2 className="font-display font-semibold text-lg">Logo</h2>
@@ -121,26 +135,21 @@ const BrandingSettings = () => {
               value={form.logo_url}
               onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
               placeholder="https://exemplo.com/logo.png"
-              disabled={!isOwnerOrAdmin}
+              disabled={!isOwnerOrAdmin || isStarterOrFree}
             />
-            {form.logo_url && (
-              <div className="mt-3 p-4 rounded-lg bg-secondary/50 flex items-center gap-3">
-                <img
-                  src={form.logo_url}
-                  alt="Logo preview"
-                  className="h-10 max-w-[160px] object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-                <span className="text-sm text-muted-foreground">Preview</span>
-              </div>
-            )}
           </div>
         </section>
 
         {/* Colors */}
-        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-6">
+        <section className={cn("card-gradient rounded-xl border border-border/50 p-6 space-y-6 relative", isStarterOrFree && "opacity-60 pointer-events-none")}>
+          {isStarterOrFree && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl bg-background/50 backdrop-blur-[1px]">
+              <Badge variant="outline" className="gap-1.5 text-xs px-3 py-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                Disponível em planos superiores
+              </Badge>
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <Palette className="h-5 w-5 text-primary" />
             <h2 className="font-display font-semibold text-lg">Cores</h2>
@@ -223,7 +232,15 @@ const BrandingSettings = () => {
         </section>
 
         {/* Platform Branding */}
-        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-4">
+        <section className={cn("card-gradient rounded-xl border border-border/50 p-6 space-y-4 relative", isStarterOrFree && "opacity-60 pointer-events-none")}>
+          {isStarterOrFree && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl bg-background/50 backdrop-blur-[1px]">
+              <Badge variant="outline" className="gap-1.5 text-xs px-3 py-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                Disponível em planos superiores
+              </Badge>
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <Eye className="h-5 w-5 text-primary" />
             <h2 className="font-display font-semibold text-lg">Marca da Plataforma</h2>
@@ -238,13 +255,21 @@ const BrandingSettings = () => {
             <Switch
               checked={form.hide_platform_branding}
               onCheckedChange={(checked) => setForm({ ...form, hide_platform_branding: checked })}
-              disabled={!isOwnerOrAdmin}
+              disabled={!isOwnerOrAdmin || isStarterOrFree}
             />
           </div>
         </section>
 
         {/* Custom Domain (future) */}
-        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-4">
+        <section className={cn("card-gradient rounded-xl border border-border/50 p-6 space-y-4 relative", isStarterOrFree && "opacity-60 pointer-events-none")}>
+          {isStarterOrFree && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 rounded-xl bg-background/50 backdrop-blur-[1px]">
+              <Badge variant="outline" className="gap-1.5 text-xs px-3 py-1.5">
+                <Lock className="h-3.5 w-3.5" />
+                Disponível em planos superiores
+              </Badge>
+            </div>
+          )}
           <div className="flex items-center gap-2 mb-2">
             <Globe className="h-5 w-5 text-primary" />
             <h2 className="font-display font-semibold text-lg">Domínio Customizado</h2>
@@ -256,7 +281,7 @@ const BrandingSettings = () => {
               value={form.custom_domain}
               onChange={(e) => setForm({ ...form, custom_domain: e.target.value })}
               placeholder="app.suaempresa.com.br"
-              disabled={!isOwnerOrAdmin}
+              disabled={!isOwnerOrAdmin || isStarterOrFree}
             />
             <p className="text-xs text-muted-foreground">
               Em breve: configure um domínio customizado para seus clientes acessarem.
