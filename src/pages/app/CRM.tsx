@@ -64,7 +64,7 @@ const StageSettingsPopover = ({ stage, onSave }: { stage: Stage; onSave: (id: st
             <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cor do cabeçalho</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cor do fundo do cabeçalho</label>
             <div className="grid grid-cols-6 gap-1.5">
               {PRESET_COLORS.map((c) => (
                 <button
@@ -246,7 +246,10 @@ const CRM = () => {
               onDrop={(e) => handleDrop(e, stage.id)}
             >
               {/* Column header */}
-              <div className="flex items-center gap-2 p-3 border-b border-border/50">
+              <div
+                className="flex items-center gap-2 p-3 border-b border-border/50 rounded-t-xl"
+                style={{ backgroundColor: stage.color + "18" }}
+              >
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                 <span className="font-display font-semibold text-sm flex-1">{stage.name}</span>
                 <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
