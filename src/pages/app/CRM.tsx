@@ -1,11 +1,20 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, DollarSign, GripVertical, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, DollarSign, GripVertical, User, Settings2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const PRESET_COLORS = [
+  "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316",
+  "#eab308", "#22c55e", "#14b8a6", "#06b6d4", "#6366f1",
+  "#a855f7", "#64748b",
+];
 
 interface Stage {
   id: string;
@@ -27,6 +36,59 @@ interface Deal {
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+
+const StageSettingsPopover = ({ stage, onSave }: { stage: Stage; onSave: (id: string, name: string, color: string) => void }) => {
+  const [name, setName] = useState(stage.name);
+  const [color, setColor] = useState(stage.color);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => { setName(stage.name); setColor(stage.color); }, [stage.name, stage.color]);
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    onSave(stage.id, name.trim(), color);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+          <Settings2 className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="end">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Título da fase</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cor do cabeçalho</label>
+            <div className="grid grid-cols-6 gap-1.5">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c}
+                  className={cn(
+                    "w-7 h-7 rounded-md border-2 transition-all flex items-center justify-center",
+                    color === c ? "border-foreground scale-110" : "border-transparent hover:scale-105"
+                  )}
+                  style={{ backgroundColor: c }}
+                  onClick={() => setColor(c)}
+                >
+                  {color === c && <Check className="h-3.5 w-3.5 text-white" />}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button size="sm" className="w-full h-8 text-xs" onClick={handleSave}>
+            Salvar
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
 const CRM = () => {
   const { tenantId } = useTenant();
@@ -69,6 +131,20 @@ const CRM = () => {
   }, [tenantId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleStageUpdate = async (stageId: string, name: string, color: string) => {
+    setStages((prev) => prev.map((s) => s.id === stageId ? { ...s, name, color } : s));
+    const { error } = await supabase
+      .from("crm_stages")
+      .update({ name, color })
+      .eq("id", stageId);
+    if (error) {
+      toast.error("Erro ao atualizar fase");
+      fetchData();
+    } else {
+      toast.success("Fase atualizada");
+    }
+  };
 
   const handleDragStart = (deal: Deal) => {
     setDraggedDeal(deal);
@@ -172,8 +248,9 @@ const CRM = () => {
               {/* Column header */}
               <div className="flex items-center gap-2 p-3 border-b border-border/50">
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
-                <span className="font-display font-semibold text-sm">{stage.name}</span>
-                <Badge variant="secondary" className="text-xs ml-auto">{stageDeals.length}</Badge>
+                <span className="font-display font-semibold text-sm flex-1">{stage.name}</span>
+                <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
+                <StageSettingsPopover stage={stage} onSave={handleStageUpdate} />
               </div>
 
               {/* Cards */}
