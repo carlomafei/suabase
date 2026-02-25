@@ -1,69 +1,45 @@
 
 
-## Plano: Preparar o enriquecimento de dados para funcionar assim que um provedor for configurado
+## Plano: Upload de logo via Storage com dica de tamanho ideal
 
-### Situação atual
+### O que será feito
 
-| Componente | Status |
-|---|---|
-| Botão "Enriquecer" na página de Clientes | **Placeholder** — simula espera de 1.5s, só atualiza `enriched_at`, não chama nenhuma API |
-| Edge function `data-broker` | **Pronta** — suporta Neoway, Assertiva, BigDataCorp, mas ninguém a chama |
-| Configuração do Data Broker em Integrações | **Parcial** — tem campos `api_url` e `api_key`, mas falta o campo `provider_type` (neoway/assertiva/bigdatacorp) |
-| Enriquecimento automático no `bling-sync` | **Não existe** — novos contatos são criados sem enfileirar enriquecimento |
+1. **Criar bucket `logos`** no Storage com leitura pública e upload restrito a usuários autenticados
+2. **Substituir campo de URL** no BrandingSettings por componente de upload de imagem com preview e dica de tamanho ideal
+3. **Atualizar Footer** para consumir `useBranding()` e exibir a logo dinamicamente
 
-### O que será implementado
+### Alterações
 
-#### 1. Conectar o botão "Enriquecer" à edge function real
+#### 1. Migração SQL — Bucket + Políticas de Storage
 
-**Arquivo:** `src/pages/app/Contacts.tsx`
+Criar bucket `logos` com acesso público de leitura e políticas de upload/update/delete para usuários autenticados.
 
-Substituir o `handleEnrich` placeholder por uma chamada real ao `data-broker`. Se o provedor não estiver configurado, mostrar um toast orientando o usuário a configurar nas Integrações.
+#### 2. `src/pages/app/BrandingSettings.tsx` — Upload com preview + dica de tamanho
 
-```text
-Fluxo:
-1. Chamar supabase.functions.invoke('data-broker', { body: { tenant_id, contact_id, cpf, nome } })
-2. Se sucesso → toast "Dados enriquecidos!" + recarregar lista
-3. Se erro "Data Broker não configurado" → toast "Configure um Data Broker em Configurações > Integrações"
-4. Se outro erro → toast com mensagem de erro
-```
+Substituir o campo `Input` de URL (linhas 131-140) por:
 
-#### 2. Adicionar campo `provider_type` na configuração do Data Broker
+- Preview da logo atual (se `form.logo_url` existir)
+- Input `type="file"` aceitando PNG, SVG, JPG, WebP (max 2MB)
+- Upload para `logos/{tenantId}/logo.{ext}` com `upsert: true`
+- URL pública salva em `form.logo_url`
+- Botão "Remover" que limpa a URL e deleta o arquivo
+- **Texto informativo:** _"Tamanho ideal: 200×60px. Formatos aceitos: PNG, SVG, JPG ou WebP. Máximo 2MB. Fundo transparente recomendado."_
 
-**Arquivo:** `src/hooks/useIntegrations.ts`
+#### 3. `src/components/Footer.tsx` — Exibir logo do branding
 
-Adicionar um campo `provider_type` (select: neoway, assertiva, bigdatacorp) nos `credentialFields` do Data Broker para que o `data-broker` saiba qual adaptador usar.
+Consumir `useBranding()` e renderizar `<img>` quando `branding.logo_url` existir. Exibir `branding.platform_name` e `branding.footer_text` quando disponíveis, em vez dos valores fixos "Sua Base".
 
-**Arquivo:** `src/hooks/useIntegrations.ts` + `src/pages/app/IntegrationSettings.tsx`
-
-Salvar `provider_type` em `settings.provider_type` (não em `credentials`), já que é uma configuração e não uma credencial. Adicionar suporte a campo tipo `select` no dialog de configuração.
-
-#### 3. Enriquecimento automático de novos contatos no bling-sync
-
-**Arquivo:** `supabase/functions/bling-sync/index.ts`
-
-Após criar um novo contato (linha 232-249), inserir um job `enrich_contact` na tabela `jobs` para que o `job-worker` processe o enriquecimento automaticamente:
-
-```text
-Após INSERT de novo contato:
-  INSERT INTO jobs (tenant_id, type, payload, status)
-  VALUES (tenantId, 'enrich_contact', { contact_id, cpf, nome }, 'pending')
-```
-
-O `job-worker` já tem o case `enrich_contact` implementado — ele chamará o `data-broker` automaticamente.
-
-Se o Data Broker não estiver configurado, o job falhará silenciosamente (sem impactar o sync).
-
-### Resumo das alterações
+### Resumo
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/app/Contacts.tsx` | `handleEnrich` chama `data-broker` de verdade |
-| `src/hooks/useIntegrations.ts` | Adicionar campo `provider_type` (select) ao Data Broker |
-| `src/pages/app/IntegrationSettings.tsx` | Suporte a campo tipo `select` no dialog + salvar `provider_type` em `settings` |
-| `supabase/functions/bling-sync/index.ts` | Enfileirar job `enrich_contact` ao criar novo contato |
+| Migração SQL | Bucket `logos` + políticas de Storage |
+| `src/pages/app/BrandingSettings.tsx` | Campo de upload com preview, remoção e dica de tamanho ideal (200×60px) |
+| `src/components/Footer.tsx` | Consumir `useBranding()` para logo e textos dinâmicos |
 
-### Resultado esperado
+### Resultado
 
-- **Agora:** Tudo fica preparado. O botão "Enriquecer" mostrará "Configure um Data Broker" se não houver provedor ativo.
-- **Quando contratar um provedor:** Basta ir em Configurações > Integrações > Data Broker, selecionar o provedor, inserir URL e API Key. A partir daí, o enriquecimento funciona tanto manual (botão) quanto automático (novos contatos do Bling).
+- Upload direto de imagem na página de Branding com orientação clara sobre tamanho ideal
+- Logo aparece automaticamente no header (já funciona) e no footer (será adicionado)
+- Cada tenant tem sua logo isolada no bucket
 
