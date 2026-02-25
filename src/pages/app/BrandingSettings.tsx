@@ -67,7 +67,7 @@ const BrandingSettings = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isStarterOrFree = !currentPlan || ["starter", "free", "trial", "teste"].includes(currentPlan.slug?.toLowerCase() || "");
+  const isStarterOrFree = false;
   const isOwnerOrAdmin = role === "owner" || role === "admin";
 
   useEffect(() => {
