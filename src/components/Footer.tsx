@@ -1,4 +1,3 @@
-import { Database } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
 
 const Footer = () => {
@@ -19,10 +18,7 @@ const Footer = () => {
                 className="h-8 max-w-[160px] object-contain"
               />
             ) : (
-              <>
-                <Database className="h-5 w-5 text-primary" />
-                <span className="font-display font-bold">{platformName}</span>
-              </>
+              <span className="font-display font-bold">{platformName}</span>
             )}
           </div>
           <p className="text-sm text-muted-foreground">

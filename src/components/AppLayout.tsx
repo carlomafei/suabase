@@ -5,7 +5,6 @@ import { useBranding } from "@/hooks/useBranding";
 import { usePermissions, Permission } from "@/hooks/usePermissions";
 import { usePlan } from "@/hooks/usePlan";
 import {
-  Database,
   LayoutDashboard,
   Users,
   ShoppingBag,
@@ -69,10 +68,8 @@ const AppLayout = () => {
         <div className="flex items-center h-12 px-4 gap-4">
           {/* Logo */}
           <NavLink to="/app" className="flex items-center gap-2 shrink-0 mr-2">
-            {branding.logo_url ? (
+            {branding.logo_url && (
               <img src={branding.logo_url} alt="Logo" className="h-6 max-w-[120px] object-contain" />
-            ) : (
-              <Database className="h-5 w-5 text-primary" />
             )}
             <span className="font-display font-bold text-base hidden sm:inline">
               {branding.platform_name || "Sua Base"}
