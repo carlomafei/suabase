@@ -1,62 +1,71 @@
 
 
-## Diagnóstico: Por que o sistema não extrai a descrição/nome do produto
+## Diagnóstico: Cliente "Carlos Alberto Porfida Mafei" duplicado
 
-### Causa raiz identificada
+### Causa raiz
 
-O problema está na edge function `bling-sync`. Existem **dois motivos técnicos**:
+O contato foi criado **duas vezes** pelo `bling-sync`, com 3 minutos de diferença (10:42 e 10:45). Isso aconteceu porque:
 
-1. **A API do Bling não retorna itens na listagem** — A rota `GET /pedidos/vendas` (usada na linha 98) retorna apenas um resumo dos pedidos (número, data, total, contato, situação). Os itens/produtos de cada pedido **não vêm nessa resposta**. Para obtê-los, é necessário chamar `GET /pedidos/vendas/{id}` individualmente para cada pedido.
+1. **O contato não tem CPF/CNPJ** — ambos os registros mostram `cpf_cnpj: null`
+2. **A deduplicação só funciona por CPF** — o código da edge function (linhas 196-207) só busca contato existente se houver `cpf` preenchido
+3. **Sem CPF, sempre cria um novo contato** — quando `cpf` é `null`, o código pula a busca e vai direto para o `insert` (linha 209)
 
-2. **A coluna `items` nunca é preenchida no código** — Nas operações de insert (linha 173) e update (linha 162), a coluna `items` simplesmente não é incluída. O banco recebe `items: []` (valor default da coluna).
-
-Confirmação no banco: todos os pedidos têm `items: []` (array vazio).
-
----
+Ou seja: o botão de sincronizar foi clicado duas vezes (ou o cron rodou logo após o manual), e como o Bling não retornou CPF para esse cliente, o sistema não conseguiu identificar que já existia.
 
 ### Plano de correção
 
-#### Alteração na edge function `bling-sync/index.ts`
+#### 1. Melhorar deduplicação na edge function (`bling-sync/index.ts`)
 
-Na função `syncTenant`, após obter a lista de pedidos, buscar o detalhe de cada pedido novo para extrair os itens:
+Adicionar uma **segunda camada de deduplicação por nome + tenant** quando CPF não está disponível. E uma **terceira camada por `external_id` do Bling** (o ID do contato no Bling, que já é salvo):
 
 ```text
-Para cada pedido na lista:
-  1. GET /pedidos/vendas/{id} → retorna dados completos incluindo "itens[]"
-  2. Extrair de cada item: descricao, quantidade, valor (valorUnidade)
-  3. Formatar como: [{"descricao": "...", "quantidade": N, "valor": X.XX}]
-  4. Salvar na coluna "items" no insert/update
+Ordem de busca:
+1. Por CPF/CNPJ (se disponível) → mais confiável
+2. Por external_id do Bling (contato.id) → identifica o mesmo contato entre syncs
+3. Fallback: por nome exato → última tentativa
+Só cria novo contato se nenhuma das 3 buscas encontrar resultado.
 ```
 
-Adicionalmente, aproveitar o detalhe para:
-- **Mapear status** do Bling para o sistema (`"Em aberto"` → `"pending"`, `"Atendido"` → `"delivered"`, etc.)
-- **Extrair marketplace real** do campo `loja` ou `canal` do pedido detalhado, em vez de fixar `"bling"`
+#### 2. Remover o registro duplicado do banco
 
-#### Arquivo afetado
+Executar SQL para deletar o contato duplicado (o mais recente, `dfb612bc`) e reatribuir os pedidos vinculados a ele para o contato original (`a003abb3`).
+
+#### 3. Adicionar constraint UNIQUE no banco (opcional mas recomendado)
+
+Criar um índice único parcial em `contacts` para `(tenant_id, external_id)` quando `external_id IS NOT NULL`, prevenindo duplicatas a nível de banco.
+
+---
+
+### Detalhes técnicos
+
+**Arquivos afetados:**
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/bling-sync/index.ts` | Adicionar chamada `GET /pedidos/vendas/{id}` para cada pedido, popular `items`, mapear status, extrair marketplace |
+| `supabase/functions/bling-sync/index.ts` | Deduplicação por `external_id` do Bling e por nome quando CPF é nulo |
 
-#### Detalhes da implementação
+**SQL para corrigir os dados existentes:**
+```sql
+-- Reatribuir pedidos do duplicado para o original
+UPDATE orders SET contact_id = 'a003abb3-fcf6-49b5-a192-409eea08339e'
+WHERE contact_id = 'dfb612bc-0acb-4159-9b2b-a3043ec3783e';
 
-1. **Adicionar mapa de status:**
-```text
-"Em aberto"    → "pending"
-"Atendido"     → "delivered"
-"Cancelado"    → "canceled"
-"Em andamento" → "processing"
-"Enviado"      → "shipped"
-(default)      → "pending"
+-- Remover o duplicado
+DELETE FROM contacts WHERE id = 'dfb612bc-0acb-4159-9b2b-a3043ec3783e';
 ```
 
-2. **Buscar detalhes com rate limiting:** Para não sobrecarregar a API do Bling, adicionar um pequeno delay entre chamadas de detalhe (100-200ms).
+**Migração para índice único:**
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_tenant_external_id
+ON contacts (tenant_id, external_id)
+WHERE external_id IS NOT NULL;
+```
 
-3. **Otimização:** Buscar detalhe apenas para pedidos **novos** (não existentes no banco), já que pedidos já sincronizados provavelmente não mudam os itens.
-
-4. **Extrair itens no formato esperado pelo frontend:**
+**Lógica atualizada de deduplicação:**
 ```text
-O frontend (Orders.tsx) já lê: item.descricao || item.nome || item.description || item.name
-Então salvar como: [{"descricao": "Nome do produto", "quantidade": 2, "valor": 49.90}]
+1. Se tem CPF → busca por (tenant_id, cpf_cnpj)
+2. Se tem external_id (contato Bling) → busca por (tenant_id, external_id)
+3. Se nenhum achou → busca por (tenant_id, name) com match exato
+4. Se nenhum achou → INSERT novo contato
 ```
 
