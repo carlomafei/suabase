@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useIntegrations, PROVIDER_CONFIGS, type ProviderConfig, type IntegrationCategory } from "@/hooks/useIntegrations";
+import { useTenant } from "@/hooks/useTenant";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plug, ShoppingBag, Database, MessageCircle, Check, X, Loader2, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plug, ShoppingBag, Database, MessageCircle, Check, X, Loader2, Trash2, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +20,8 @@ const CATEGORY_META: Record<IntegrationCategory, { label: string; icon: typeof P
 };
 
 const IntegrationSettings = () => {
-  const { getIntegration, saveCredentials, toggleActive, removeIntegration, loading, saving } = useIntegrations();
+  const { getIntegration, saveCredentials, toggleActive, removeIntegration, loading, saving, getBlingOAuthUrl, isBlingOAuthConnected } = useIntegrations();
+  const { tenantId } = useTenant();
   const { can } = usePermissions();
   const [editingProvider, setEditingProvider] = useState<ProviderConfig | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
@@ -115,7 +117,7 @@ const IntegrationSettings = () => {
                       <CardDescription className="text-xs">{config.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         {config.available && canManage ? (
                           <>
                             <Button
@@ -126,6 +128,31 @@ const IntegrationSettings = () => {
                             >
                               {isConnected ? "Editar" : "Configurar"}
                             </Button>
+                            {/* Bling OAuth connect button */}
+                            {config.id === "bling" && isConnected && !isBlingOAuthConnected() && tenantId && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="text-xs"
+                                onClick={() => {
+                                  const creds = (integration?.credentials || {}) as Record<string, string>;
+                                  if (!creds.client_id) {
+                                    toast.error("Configure o Client ID primeiro");
+                                    return;
+                                  }
+                                  window.location.href = getBlingOAuthUrl(tenantId, creds.client_id);
+                                }}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Conectar OAuth
+                              </Button>
+                            )}
+                            {config.id === "bling" && isBlingOAuthConnected() && (
+                              <Badge className="bg-primary/15 text-primary text-xs">
+                                <Check className="h-3 w-3 mr-1" />
+                                OAuth Conectado
+                              </Badge>
+                            )}
                             {isConnected && (
                               <>
                                 <Switch

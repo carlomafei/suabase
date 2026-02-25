@@ -89,9 +89,58 @@ Deno.serve(async (req) => {
       );
     }
 
-    const creds = integration.credentials as Record<string, string>;
-    const accessToken = creds.api_key;
+    let creds = integration.credentials as Record<string, string>;
+    let accessToken = creds.access_token;
     const cursor = (integration as any).sync_cursor || null;
+
+    // Auto-refresh token if expired
+    if (creds.expires_at && new Date(creds.expires_at) <= new Date()) {
+      if (!creds.refresh_token || !creds.client_id || !creds.client_secret) {
+        return new Response(
+          JSON.stringify({ error: "Token expirado e refresh não disponível" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const basicAuth = btoa(`${creds.client_id}:${creds.client_secret}`);
+      const refreshRes = await fetch("https://www.bling.com.br/Api/v3/oauth/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${basicAuth}`,
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: creds.refresh_token,
+        }),
+      });
+
+      if (!refreshRes.ok) {
+        const errBody = await refreshRes.text();
+        console.error("Bling token refresh failed:", errBody);
+        return new Response(
+          JSON.stringify({ error: "Falha ao renovar token do Bling", details: errBody }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const tokenData = await refreshRes.json();
+      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+      creds = {
+        ...creds,
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: expiresAt,
+      };
+
+      await supabase
+        .from("tenant_integrations")
+        .update({ credentials: creds as any, updated_at: new Date().toISOString() })
+        .eq("id", integration.id);
+
+      accessToken = tokenData.access_token;
+    }
 
     // Incremental sync: fetch orders modified after cursor
     let path = "/pedidos/vendas?pagina=1&limite=100&criterio=3";
