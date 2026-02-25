@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useBranding, type BrandingSettings } from "@/hooks/useBranding";
 import { useTenant } from "@/hooks/useTenant";
 import { usePlan } from "@/hooks/usePlan";
+import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, FileText, Eye, Lock } from "lucide-react";
+import { Palette, Type, Image, Globe, FileText, Eye, Lock, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLOR_PRESETS = [
@@ -59,10 +60,12 @@ function hexToHsl(hex: string): string {
 
 const BrandingSettings = () => {
   const { branding, loading, saveBranding } = useBranding();
-  const { role } = useTenant();
+  const { role, tenantId } = useTenant();
   const { currentPlan } = usePlan();
   const [form, setForm] = useState<BrandingSettings>(branding);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isStarterOrFree = !currentPlan || ["starter", "free", "trial", "teste"].includes(currentPlan.slug?.toLowerCase() || "");
   const isOwnerOrAdmin = role === "owner" || role === "admin";
@@ -79,6 +82,53 @@ const BrandingSettings = () => {
     else toast.error("Erro ao salvar branding.");
   };
 
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !tenantId) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Arquivo muito grande. Máximo 2MB.");
+      return;
+    }
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+    const path = `${tenantId}/logo.${ext}`;
+
+    setUploading(true);
+    const { error } = await supabase.storage
+      .from("logos")
+      .upload(path, file, { upsert: true });
+
+    if (error) {
+      toast.error("Erro ao fazer upload da logo.");
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
+    setForm({ ...form, logo_url: urlData.publicUrl });
+    setUploading(false);
+    toast.success("Logo enviada com sucesso!");
+
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleLogoRemove = async () => {
+    if (!tenantId) return;
+
+    const { error } = await supabase.storage
+      .from("logos")
+      .remove([`${tenantId}/logo.png`, `${tenantId}/logo.jpg`, `${tenantId}/logo.jpeg`, `${tenantId}/logo.svg`, `${tenantId}/logo.webp`]);
+
+    if (error) {
+      toast.error("Erro ao remover logo.");
+      return;
+    }
+
+    setForm({ ...form, logo_url: "" });
+    toast.success("Logo removida.");
+  };
 
   if (loading) {
     return (
@@ -128,15 +178,49 @@ const BrandingSettings = () => {
             <Image className="h-5 w-5 text-primary" />
             <h2 className="font-display font-semibold text-lg">Logo</h2>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="logo_url">URL do logo (PNG ou SVG recomendado)</Label>
-            <Input
-              id="logo_url"
-              value={form.logo_url}
-              onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-              placeholder="https://exemplo.com/logo.png"
-              disabled={!isOwnerOrAdmin || isStarterOrFree}
-            />
+          <div className="space-y-3">
+            <Label>Logo da empresa</Label>
+            {form.logo_url && (
+              <div className="flex items-center gap-4 p-3 rounded-lg border border-border/50 bg-muted/30">
+                <img
+                  src={form.logo_url}
+                  alt="Logo"
+                  className="h-12 max-w-[200px] object-contain"
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogoRemove}
+                  disabled={!isOwnerOrAdmin || isStarterOrFree}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Remover
+                </Button>
+              </div>
+            )}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/svg+xml,image/jpeg,image/webp"
+                onChange={handleLogoUpload}
+                className="hidden"
+                disabled={!isOwnerOrAdmin || isStarterOrFree || uploading}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!isOwnerOrAdmin || isStarterOrFree || uploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? "Enviando..." : "Enviar logo"}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Tamanho ideal: 200×60px. Formatos aceitos: PNG, SVG, JPG ou WebP. Máximo 2MB. Fundo transparente recomendado.
+            </p>
           </div>
         </section>
 
