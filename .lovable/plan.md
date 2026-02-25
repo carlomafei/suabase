@@ -1,71 +1,69 @@
 
 
-## Diagnóstico: Cliente "Carlos Alberto Porfida Mafei" duplicado
+## Plano: Preparar o enriquecimento de dados para funcionar assim que um provedor for configurado
 
-### Causa raiz
+### Situação atual
 
-O contato foi criado **duas vezes** pelo `bling-sync`, com 3 minutos de diferença (10:42 e 10:45). Isso aconteceu porque:
+| Componente | Status |
+|---|---|
+| Botão "Enriquecer" na página de Clientes | **Placeholder** — simula espera de 1.5s, só atualiza `enriched_at`, não chama nenhuma API |
+| Edge function `data-broker` | **Pronta** — suporta Neoway, Assertiva, BigDataCorp, mas ninguém a chama |
+| Configuração do Data Broker em Integrações | **Parcial** — tem campos `api_url` e `api_key`, mas falta o campo `provider_type` (neoway/assertiva/bigdatacorp) |
+| Enriquecimento automático no `bling-sync` | **Não existe** — novos contatos são criados sem enfileirar enriquecimento |
 
-1. **O contato não tem CPF/CNPJ** — ambos os registros mostram `cpf_cnpj: null`
-2. **A deduplicação só funciona por CPF** — o código da edge function (linhas 196-207) só busca contato existente se houver `cpf` preenchido
-3. **Sem CPF, sempre cria um novo contato** — quando `cpf` é `null`, o código pula a busca e vai direto para o `insert` (linha 209)
+### O que será implementado
 
-Ou seja: o botão de sincronizar foi clicado duas vezes (ou o cron rodou logo após o manual), e como o Bling não retornou CPF para esse cliente, o sistema não conseguiu identificar que já existia.
+#### 1. Conectar o botão "Enriquecer" à edge function real
 
-### Plano de correção
+**Arquivo:** `src/pages/app/Contacts.tsx`
 
-#### 1. Melhorar deduplicação na edge function (`bling-sync/index.ts`)
-
-Adicionar uma **segunda camada de deduplicação por nome + tenant** quando CPF não está disponível. E uma **terceira camada por `external_id` do Bling** (o ID do contato no Bling, que já é salvo):
+Substituir o `handleEnrich` placeholder por uma chamada real ao `data-broker`. Se o provedor não estiver configurado, mostrar um toast orientando o usuário a configurar nas Integrações.
 
 ```text
-Ordem de busca:
-1. Por CPF/CNPJ (se disponível) → mais confiável
-2. Por external_id do Bling (contato.id) → identifica o mesmo contato entre syncs
-3. Fallback: por nome exato → última tentativa
-Só cria novo contato se nenhuma das 3 buscas encontrar resultado.
+Fluxo:
+1. Chamar supabase.functions.invoke('data-broker', { body: { tenant_id, contact_id, cpf, nome } })
+2. Se sucesso → toast "Dados enriquecidos!" + recarregar lista
+3. Se erro "Data Broker não configurado" → toast "Configure um Data Broker em Configurações > Integrações"
+4. Se outro erro → toast com mensagem de erro
 ```
 
-#### 2. Remover o registro duplicado do banco
+#### 2. Adicionar campo `provider_type` na configuração do Data Broker
 
-Executar SQL para deletar o contato duplicado (o mais recente, `dfb612bc`) e reatribuir os pedidos vinculados a ele para o contato original (`a003abb3`).
+**Arquivo:** `src/hooks/useIntegrations.ts`
 
-#### 3. Adicionar constraint UNIQUE no banco (opcional mas recomendado)
+Adicionar um campo `provider_type` (select: neoway, assertiva, bigdatacorp) nos `credentialFields` do Data Broker para que o `data-broker` saiba qual adaptador usar.
 
-Criar um índice único parcial em `contacts` para `(tenant_id, external_id)` quando `external_id IS NOT NULL`, prevenindo duplicatas a nível de banco.
+**Arquivo:** `src/hooks/useIntegrations.ts` + `src/pages/app/IntegrationSettings.tsx`
 
----
+Salvar `provider_type` em `settings.provider_type` (não em `credentials`), já que é uma configuração e não uma credencial. Adicionar suporte a campo tipo `select` no dialog de configuração.
 
-### Detalhes técnicos
+#### 3. Enriquecimento automático de novos contatos no bling-sync
 
-**Arquivos afetados:**
+**Arquivo:** `supabase/functions/bling-sync/index.ts`
+
+Após criar um novo contato (linha 232-249), inserir um job `enrich_contact` na tabela `jobs` para que o `job-worker` processe o enriquecimento automaticamente:
+
+```text
+Após INSERT de novo contato:
+  INSERT INTO jobs (tenant_id, type, payload, status)
+  VALUES (tenantId, 'enrich_contact', { contact_id, cpf, nome }, 'pending')
+```
+
+O `job-worker` já tem o case `enrich_contact` implementado — ele chamará o `data-broker` automaticamente.
+
+Se o Data Broker não estiver configurado, o job falhará silenciosamente (sem impactar o sync).
+
+### Resumo das alterações
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/bling-sync/index.ts` | Deduplicação por `external_id` do Bling e por nome quando CPF é nulo |
+| `src/pages/app/Contacts.tsx` | `handleEnrich` chama `data-broker` de verdade |
+| `src/hooks/useIntegrations.ts` | Adicionar campo `provider_type` (select) ao Data Broker |
+| `src/pages/app/IntegrationSettings.tsx` | Suporte a campo tipo `select` no dialog + salvar `provider_type` em `settings` |
+| `supabase/functions/bling-sync/index.ts` | Enfileirar job `enrich_contact` ao criar novo contato |
 
-**SQL para corrigir os dados existentes:**
-```sql
--- Reatribuir pedidos do duplicado para o original
-UPDATE orders SET contact_id = 'a003abb3-fcf6-49b5-a192-409eea08339e'
-WHERE contact_id = 'dfb612bc-0acb-4159-9b2b-a3043ec3783e';
+### Resultado esperado
 
--- Remover o duplicado
-DELETE FROM contacts WHERE id = 'dfb612bc-0acb-4159-9b2b-a3043ec3783e';
-```
-
-**Migração para índice único:**
-```sql
-CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_tenant_external_id
-ON contacts (tenant_id, external_id)
-WHERE external_id IS NOT NULL;
-```
-
-**Lógica atualizada de deduplicação:**
-```text
-1. Se tem CPF → busca por (tenant_id, cpf_cnpj)
-2. Se tem external_id (contato Bling) → busca por (tenant_id, external_id)
-3. Se nenhum achou → busca por (tenant_id, name) com match exato
-4. Se nenhum achou → INSERT novo contato
-```
+- **Agora:** Tudo fica preparado. O botão "Enriquecer" mostrará "Configure um Data Broker" se não houver provedor ativo.
+- **Quando contratar um provedor:** Basta ir em Configurações > Integrações > Data Broker, selecionar o provedor, inserir URL e API Key. A partir daí, o enriquecimento funciona tanto manual (botão) quanto automático (novos contatos do Bling).
 
