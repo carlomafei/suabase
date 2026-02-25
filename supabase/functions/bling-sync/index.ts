@@ -21,7 +21,50 @@ interface BlingOrder {
   situacao: { valor: number; descricao: string };
 }
 
+interface BlingOrderDetail {
+  id: number;
+  numero: string;
+  data: string;
+  totalProdutos: number;
+  contato: {
+    id: number;
+    nome: string;
+    cpf_cnpj?: string;
+    email?: string;
+    fone?: string;
+  };
+  situacao: { valor: number; descricao: string };
+  itens: Array<{
+    descricao: string;
+    quantidade: number;
+    valorUnidade: number;
+    produto?: { id: number; nome?: string };
+  }>;
+  loja?: { id: number; nome?: string };
+  canal?: string;
+}
+
 const BLING_API = "https://www.bling.com.br/Api/v3";
+
+// Status mapping from Bling to internal system
+const STATUS_MAP: Record<string, string> = {
+  "Em aberto": "pending",
+  "Atendido": "delivered",
+  "Cancelado": "canceled",
+  "Em andamento": "processing",
+  "Enviado": "shipped",
+  "Verificado": "processing",
+  "Venda Agenciada": "pending",
+};
+
+function mapBlingStatus(blingStatus: string | undefined): string {
+  if (!blingStatus) return "pending";
+  return STATUS_MAP[blingStatus] || "pending";
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function blingFetch(path: string, accessToken: string) {
   const res = await fetch(`${BLING_API}${path}`, {
@@ -32,6 +75,16 @@ async function blingFetch(path: string, accessToken: string) {
     throw new Error(`Bling API ${res.status}: ${body}`);
   }
   return res.json();
+}
+
+async function fetchOrderDetail(orderId: number, accessToken: string): Promise<BlingOrderDetail | null> {
+  try {
+    const result = await blingFetch(`/pedidos/vendas/${orderId}`, accessToken);
+    return result?.data || null;
+  } catch (err: any) {
+    console.error(`Failed to fetch order detail ${orderId}:`, err.message);
+    return null;
+  }
 }
 
 async function refreshTokenIfNeeded(
@@ -117,6 +170,24 @@ async function syncTenant(
       .eq("external_id", blingId)
       .maybeSingle();
 
+    // Fetch order detail to get items, real status, and marketplace
+    const detail = await fetchOrderDetail(order.id, accessToken);
+    // Rate limiting: small delay between detail API calls
+    await delay(150);
+
+    // Extract items from detail
+    const items = (detail?.itens || []).map((item) => ({
+      descricao: item.descricao || item.produto?.nome || "Produto sem nome",
+      quantidade: item.quantidade || 1,
+      valor: item.valorUnidade || 0,
+    }));
+
+    // Map status from Bling to internal
+    const mappedStatus = mapBlingStatus(detail?.situacao?.descricao || order.situacao?.descricao);
+
+    // Extract marketplace from detail
+    const marketplace = detail?.loja?.nome || detail?.canal || "bling";
+
     // Upsert contact
     let contactId: string | null = null;
     if (order.contato) {
@@ -161,10 +232,12 @@ async function syncTenant(
       await supabase
         .from("orders")
         .update({
-          status: order.situacao?.descricao || "pendente",
+          status: mappedStatus,
           total_value: order.totalProdutos || 0,
           contact_id: contactId,
           order_date: order.data || null,
+          items: items as any,
+          marketplace: marketplace,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
@@ -175,9 +248,10 @@ async function syncTenant(
         external_id: blingId,
         contact_id: contactId,
         total_value: order.totalProdutos || 0,
-        status: order.situacao?.descricao || "pendente",
+        status: mappedStatus,
         order_date: order.data || null,
-        marketplace: "bling",
+        items: items as any,
+        marketplace: marketplace,
         synced_from: "bling",
         metadata: { bling_numero: order.numero } as any,
       });
@@ -302,13 +376,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    const result = await syncTenant(supabase, tenant_id, integration);
+    const syncResult = await syncTenant(supabase, tenant_id, integration);
 
     return new Response(
       JSON.stringify({
         success: true,
         mode: "manual",
-        ...result,
+        ...syncResult,
         cursor: new Date().toISOString().split("T")[0],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
