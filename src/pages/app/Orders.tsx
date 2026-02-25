@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
+import { useIntegrations } from "@/hooks/useIntegrations";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -24,7 +25,9 @@ import {
   CalendarIcon,
   Filter,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -74,12 +77,31 @@ const formatCurrency = (v: number) =>
 
 const Orders = () => {
   const { tenantId } = useTenant();
+  const { isBlingOAuthConnected } = useIntegrations();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [filterMarketplace, setFilterMarketplace] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  const handleBlingSync = useCallback(async () => {
+    if (!tenantId || syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bling-sync', {
+        body: { tenant_id: tenantId },
+      });
+      if (error) throw error;
+      toast.success(`Sincronizado: ${data?.synced ?? 0} novos, ${data?.updated ?? 0} atualizados`);
+      fetchOrders();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao sincronizar com o Bling");
+    } finally {
+      setSyncing(false);
+    }
+  }, [tenantId, syncing]);
 
   const fetchOrders = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -151,10 +173,24 @@ const Orders = () => {
           <h1 className="font-display text-2xl md:text-3xl font-bold">Pedidos</h1>
           <p className="text-muted-foreground text-sm mt-1">Pedidos sincronizados dos marketplaces</p>
         </div>
-        <Badge variant="secondary" className="w-fit text-xs">
-          <ShoppingBag className="h-3 w-3 mr-1" />
-          {orders.length} pedido{orders.length !== 1 ? "s" : ""}
-        </Badge>
+        <div className="flex items-center gap-2">
+          {isBlingOAuthConnected() && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs"
+              onClick={handleBlingSync}
+              disabled={syncing}
+            >
+              {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              Sincronizar Bling
+            </Button>
+          )}
+          <Badge variant="secondary" className="w-fit text-xs">
+            <ShoppingBag className="h-3 w-3 mr-1" />
+            {orders.length} pedido{orders.length !== 1 ? "s" : ""}
+          </Badge>
+        </div>
       </div>
 
       {/* Filters */}
