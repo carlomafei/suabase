@@ -1,14 +1,19 @@
 import { Button } from "@/components/ui/button";
-import { Database } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useBranding } from "@/hooks/useBranding";
 
 const Navbar = () => {
+  const { branding } = useBranding();
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container flex items-center justify-between h-16 px-4">
         <div className="flex items-center gap-2">
-          <Database className="h-6 w-6 text-primary" />
-          <span className="font-display font-bold text-xl">Sua Base</span>
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt={branding.platform_name || "Logo"} className="h-7 max-w-[140px] object-contain" />
+          ) : (
+            <span className="font-display font-bold text-xl">{branding.platform_name || "Sua Base"}</span>
+          )}
         </div>
 
         <div className="hidden md:flex items-center gap-8">
