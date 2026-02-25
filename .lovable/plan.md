@@ -1,49 +1,35 @@
 
 
-## Plano: Integração Bling ERP via OAuth 2.0 (API V3)
+## Plano: Botão Manual + Agendamento Automático do Bling Sync
 
-### Situação atual
-
-- A integração Bling já existe em `useIntegrations.ts` com campos `api_key`, `client_id`, `client_secret` — mas espera um token estático, sem fluxo OAuth real
-- A edge function `bling-sync` usa `creds.api_key` como `access_token` diretamente — sem refresh automático
-- A tabela `tenant_integrations` já possui campos `credentials` (jsonb) e `settings` (jsonb) que comportam tokens OAuth
-- O card na tela de Configurações > Integrações já renderiza o Bling com botão "Configurar"
-
-### Fluxo OAuth 2.0 do Bling (Authorization Code)
-
-```text
-1. Usuário clica "Conectar Bling" na UI
-2. Frontend redireciona para:
-   https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=XXX&state=TENANT_ID
-3. Bling redireciona para callback URL (edge function)
-4. Edge function troca o code por access_token + refresh_token
-5. Tokens são salvos em tenant_integrations.credentials
-6. Usuário é redirecionado de volta para /app/settings
-```
+Sim, é totalmente possível ter as duas funções. O botão manual serve para sincronizar sob demanda, e o cron garante que os pedidos sejam atualizados automaticamente a cada 15 minutos.
 
 ---
 
-### Alterações planejadas
+### Alterações necessárias
 
-#### 1. Nova edge function `bling-oauth-callback`
+#### 1. Adaptar `bling-sync` para dois modos
 
-Recebe o `code` e `state` (tenant_id) do redirect do Bling, faz POST para `https://www.bling.com.br/Api/v3/oauth/token` com Basic Auth (client_id:client_secret), salva `access_token`, `refresh_token` e `expires_at` no campo `credentials` da `tenant_integrations`, e redireciona o usuário para `/app/settings`.
+A edge function precisa funcionar em dois cenários:
 
-#### 2. Atualizar `useIntegrations.ts` — campos do Bling
+```text
+COM tenant_id no body → Modo manual (exige JWT do usuário)
+COM { "cron": true }  → Modo automático (busca todos os tenants com Bling ativo)
+```
 
-Mudar os `credentialFields` do Bling para apenas `client_id` e `client_secret` (remover `api_key`). Adicionar um método para gerar a URL de autorização e um indicador de "conectado via OAuth" baseado na presença de `access_token` nos credentials.
+No modo cron, a função usará a service role key para iterar por todas as integrações Bling ativas e sincronizar cada uma sequencialmente. Sem necessidade de autenticação de usuário.
 
-#### 3. Atualizar `IntegrationSettings.tsx` — botão OAuth
+#### 2. Botão "Sincronizar Pedidos" no card do Bling (IntegrationSettings)
 
-Para o Bling especificamente, quando já tem `client_id` e `client_secret` salvos mas não tem `access_token`, exibir botão "Conectar ao Bling" que redireciona para o endpoint de autorização. Quando já tem token, exibir status "Conectado" com data de expiração.
+Visível apenas quando o OAuth está conectado. Chama `supabase.functions.invoke('bling-sync', { body: { tenant_id } })` com feedback de loading e toast.
 
-#### 4. Atualizar `bling-sync/index.ts` — auto-refresh de token
+#### 3. Botão "Sincronizar Bling" na página de Pedidos (Orders)
 
-Antes de chamar a API, verificar se o `access_token` expirou (comparar `expires_at` com `now()`). Se expirou, usar o `refresh_token` para obter novo access_token via POST para `/oauth/token` com `grant_type=refresh_token`, atualizar `credentials` no banco, e prosseguir com a sincronização.
+No header da página, ao lado do badge de contagem, um botão que dispara a mesma chamada. Inclui spinner durante a execução e recarrega a lista ao terminar.
 
-#### 5. Rota de callback no frontend
+#### 4. Cron job via pg_cron + pg_net
 
-Adicionar rota `/app/bling/callback` no `App.tsx` que captura `?code=XXX&state=YYY` da query string e chama a edge function `bling-oauth-callback` para completar o fluxo.
+SQL executado no banco para agendar uma chamada HTTP POST à função a cada 15 minutos, com `{"cron": true}` no body.
 
 ---
 
@@ -53,28 +39,36 @@ Adicionar rota `/app/bling/callback` no `App.tsx` que captura `?code=XXX&state=Y
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/bling-oauth-callback/index.ts` | Novo — troca code por tokens |
-| `supabase/functions/bling-sync/index.ts` | Adicionar lógica de refresh automático |
-| `src/hooks/useIntegrations.ts` | Remover campo `api_key`, adicionar helper OAuth |
-| `src/pages/app/IntegrationSettings.tsx` | Botão "Conectar ao Bling" com redirect OAuth |
-| `src/App.tsx` | Nova rota `/app/bling/callback` |
-| `src/pages/app/BlingCallback.tsx` | Novo — página intermediária que processa o callback |
+| `supabase/functions/bling-sync/index.ts` | Adicionar modo cron: se body `{ "cron": true }`, buscar todos tenants com Bling ativo e sincronizar cada um sem exigir JWT |
+| `src/pages/app/IntegrationSettings.tsx` | Botão "Sincronizar Pedidos" no card Bling quando OAuth conectado |
+| `src/pages/app/Orders.tsx` | Botão "Sincronizar Bling" no header com loading + toast + refresh |
 
-**Credenciais armazenadas em `tenant_integrations.credentials`:**
-```json
-{
-  "client_id": "...",
-  "client_secret": "...",
-  "access_token": "...",
-  "refresh_token": "...",
-  "expires_at": "2026-02-25T02:00:00Z"
-}
+**SQL do cron job** (executado via insert tool):
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
+
+SELECT cron.schedule(
+  'bling-sync-every-15min',
+  '*/15 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://ntfpzslkdlrpcgrmxsay.supabase.co/functions/v1/bling-sync',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50ZnB6c2xrZGxycGNncm14c2F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mzc1OTQsImV4cCI6MjA4NzQxMzU5NH0.ntkNb2d8XErBeYUO3_E1PO3QHo7CHRA3LWK8ZGQBxWA"}'::jsonb,
+    body := '{"cron": true}'::jsonb
+  ) AS request_id;
+  $$
+);
 ```
 
-**Segurança:**
-- O `client_secret` fica no banco com RLS (somente admin do tenant pode ler)
-- O `state` no OAuth carrega o `tenant_id` para vincular ao tenant correto
-- A edge function valida a autenticação antes de salvar tokens
+**Lógica do modo cron na edge function:**
+```text
+1. Detecta body { "cron": true }
+2. Pula validação de JWT
+3. Busca todos tenant_integrations WHERE provider='bling' AND is_active=true
+4. Para cada integração: refresh token se necessário → buscar pedidos → upsert
+5. Retorna resumo agregado de todos os tenants
+```
 
-**Nenhuma migration de banco necessária** — o campo `credentials` (jsonb) já comporta os novos campos.
+**Frequência:** 15 minutos (ajustável depois para 5, 10, 30 ou 60 min).
 
