@@ -34,9 +34,8 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
     description: "Sincronize pedidos, produtos e clientes do Bling.",
     available: true,
     credentialFields: [
-      { key: "api_key", label: "API Key", type: "password", placeholder: "Cole sua API key do Bling" },
       { key: "client_id", label: "Client ID", type: "text", placeholder: "Client ID do app Bling" },
-      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Client Secret" },
+      { key: "client_secret", label: "Client Secret", type: "password", placeholder: "Client Secret do app Bling" },
     ],
   },
   {
@@ -168,6 +167,20 @@ export const useIntegrations = () => {
     return false;
   };
 
+  const getBlingOAuthUrl = (tenantId: string, clientId: string): string => {
+    const redirectUri = encodeURIComponent(
+      `${window.location.origin}/app/bling/callback`
+    );
+    return `https://www.bling.com.br/Api/v3/oauth/authorize?response_type=code&client_id=${clientId}&state=${tenantId}&redirect_uri=${redirectUri}`;
+  };
+
+  const isBlingOAuthConnected = (): boolean => {
+    const integration = getIntegration("bling");
+    if (!integration?.credentials) return false;
+    const creds = integration.credentials as Record<string, string>;
+    return !!creds.access_token;
+  };
+
   return {
     integrations,
     loading,
@@ -177,5 +190,7 @@ export const useIntegrations = () => {
     toggleActive,
     removeIntegration,
     refetch: fetchIntegrations,
+    getBlingOAuthUrl,
+    isBlingOAuthConnected,
   };
 };

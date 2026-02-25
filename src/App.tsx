@@ -17,6 +17,7 @@ import Messages from "./pages/app/Messages";
 import Automations from "./pages/app/Automations";
 import Analytics from "./pages/app/Analytics";
 import AppSettings from "./pages/app/AppSettings";
+import BlingCallback from "./pages/app/BlingCallback";
 import AdminMetrics from "./pages/admin/AdminMetrics";
 import AdminTenants from "./pages/admin/AdminTenants";
 import AdminPlans from "./pages/admin/AdminPlans";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="automations" element={<Automations />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="settings" element={<AppSettings />} />
+            <Route path="bling/callback" element={<BlingCallback />} />
           </Route>
           <Route
             path="/admin"
