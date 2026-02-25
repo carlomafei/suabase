@@ -1,74 +1,62 @@
 
 
-## Plano: Botão Manual + Agendamento Automático do Bling Sync
+## Diagnóstico: Por que o sistema não extrai a descrição/nome do produto
 
-Sim, é totalmente possível ter as duas funções. O botão manual serve para sincronizar sob demanda, e o cron garante que os pedidos sejam atualizados automaticamente a cada 15 minutos.
+### Causa raiz identificada
+
+O problema está na edge function `bling-sync`. Existem **dois motivos técnicos**:
+
+1. **A API do Bling não retorna itens na listagem** — A rota `GET /pedidos/vendas` (usada na linha 98) retorna apenas um resumo dos pedidos (número, data, total, contato, situação). Os itens/produtos de cada pedido **não vêm nessa resposta**. Para obtê-los, é necessário chamar `GET /pedidos/vendas/{id}` individualmente para cada pedido.
+
+2. **A coluna `items` nunca é preenchida no código** — Nas operações de insert (linha 173) e update (linha 162), a coluna `items` simplesmente não é incluída. O banco recebe `items: []` (valor default da coluna).
+
+Confirmação no banco: todos os pedidos têm `items: []` (array vazio).
 
 ---
 
-### Alterações necessárias
+### Plano de correção
 
-#### 1. Adaptar `bling-sync` para dois modos
+#### Alteração na edge function `bling-sync/index.ts`
 
-A edge function precisa funcionar em dois cenários:
+Na função `syncTenant`, após obter a lista de pedidos, buscar o detalhe de cada pedido novo para extrair os itens:
 
 ```text
-COM tenant_id no body → Modo manual (exige JWT do usuário)
-COM { "cron": true }  → Modo automático (busca todos os tenants com Bling ativo)
+Para cada pedido na lista:
+  1. GET /pedidos/vendas/{id} → retorna dados completos incluindo "itens[]"
+  2. Extrair de cada item: descricao, quantidade, valor (valorUnidade)
+  3. Formatar como: [{"descricao": "...", "quantidade": N, "valor": X.XX}]
+  4. Salvar na coluna "items" no insert/update
 ```
 
-No modo cron, a função usará a service role key para iterar por todas as integrações Bling ativas e sincronizar cada uma sequencialmente. Sem necessidade de autenticação de usuário.
+Adicionalmente, aproveitar o detalhe para:
+- **Mapear status** do Bling para o sistema (`"Em aberto"` → `"pending"`, `"Atendido"` → `"delivered"`, etc.)
+- **Extrair marketplace real** do campo `loja` ou `canal` do pedido detalhado, em vez de fixar `"bling"`
 
-#### 2. Botão "Sincronizar Pedidos" no card do Bling (IntegrationSettings)
-
-Visível apenas quando o OAuth está conectado. Chama `supabase.functions.invoke('bling-sync', { body: { tenant_id } })` com feedback de loading e toast.
-
-#### 3. Botão "Sincronizar Bling" na página de Pedidos (Orders)
-
-No header da página, ao lado do badge de contagem, um botão que dispara a mesma chamada. Inclui spinner durante a execução e recarrega a lista ao terminar.
-
-#### 4. Cron job via pg_cron + pg_net
-
-SQL executado no banco para agendar uma chamada HTTP POST à função a cada 15 minutos, com `{"cron": true}` no body.
-
----
-
-### Detalhes técnicos
-
-**Arquivos afetados:**
+#### Arquivo afetado
 
 | Arquivo | Mudança |
 |---|---|
-| `supabase/functions/bling-sync/index.ts` | Adicionar modo cron: se body `{ "cron": true }`, buscar todos tenants com Bling ativo e sincronizar cada um sem exigir JWT |
-| `src/pages/app/IntegrationSettings.tsx` | Botão "Sincronizar Pedidos" no card Bling quando OAuth conectado |
-| `src/pages/app/Orders.tsx` | Botão "Sincronizar Bling" no header com loading + toast + refresh |
+| `supabase/functions/bling-sync/index.ts` | Adicionar chamada `GET /pedidos/vendas/{id}` para cada pedido, popular `items`, mapear status, extrair marketplace |
 
-**SQL do cron job** (executado via insert tool):
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-CREATE EXTENSION IF NOT EXISTS pg_net;
+#### Detalhes da implementação
 
-SELECT cron.schedule(
-  'bling-sync-every-15min',
-  '*/15 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://ntfpzslkdlrpcgrmxsay.supabase.co/functions/v1/bling-sync',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im50ZnB6c2xrZGxycGNncm14c2F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4Mzc1OTQsImV4cCI6MjA4NzQxMzU5NH0.ntkNb2d8XErBeYUO3_E1PO3QHo7CHRA3LWK8ZGQBxWA"}'::jsonb,
-    body := '{"cron": true}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
-
-**Lógica do modo cron na edge function:**
+1. **Adicionar mapa de status:**
 ```text
-1. Detecta body { "cron": true }
-2. Pula validação de JWT
-3. Busca todos tenant_integrations WHERE provider='bling' AND is_active=true
-4. Para cada integração: refresh token se necessário → buscar pedidos → upsert
-5. Retorna resumo agregado de todos os tenants
+"Em aberto"    → "pending"
+"Atendido"     → "delivered"
+"Cancelado"    → "canceled"
+"Em andamento" → "processing"
+"Enviado"      → "shipped"
+(default)      → "pending"
 ```
 
-**Frequência:** 15 minutos (ajustável depois para 5, 10, 30 ou 60 min).
+2. **Buscar detalhes com rate limiting:** Para não sobrecarregar a API do Bling, adicionar um pequeno delay entre chamadas de detalhe (100-200ms).
+
+3. **Otimização:** Buscar detalhe apenas para pedidos **novos** (não existentes no banco), já que pedidos já sincronizados provavelmente não mudam os itens.
+
+4. **Extrair itens no formato esperado pelo frontend:**
+```text
+O frontend (Orders.tsx) já lê: item.descricao || item.nome || item.description || item.name
+Então salvar como: [{"descricao": "Nome do produto", "quantidade": 2, "valor": 49.90}]
+```
 
