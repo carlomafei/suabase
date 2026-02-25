@@ -188,24 +188,46 @@ async function syncTenant(
     // Extract marketplace from detail
     const marketplace = detail?.loja?.nome || detail?.canal || "bling";
 
-    // Upsert contact
+    // Upsert contact with 3-tier deduplication
     let contactId: string | null = null;
     if (order.contato) {
       const cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
+      const blingContactId = String(order.contato.id);
 
+      // Tier 1: By CPF/CNPJ (most reliable)
       if (cpf) {
-        const { data: existingContact } = await supabase
+        const { data: found } = await supabase
           .from("contacts")
           .select("id")
           .eq("tenant_id", tenantId)
           .eq("cpf_cnpj", cpf)
           .maybeSingle();
-
-        if (existingContact) {
-          contactId = existingContact.id;
-        }
+        if (found) contactId = found.id;
       }
 
+      // Tier 2: By external_id (Bling contact ID)
+      if (!contactId && blingContactId) {
+        const { data: found } = await supabase
+          .from("contacts")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("external_id", blingContactId)
+          .maybeSingle();
+        if (found) contactId = found.id;
+      }
+
+      // Tier 3: By exact name match
+      if (!contactId && order.contato.nome) {
+        const { data: found } = await supabase
+          .from("contacts")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("name", order.contato.nome)
+          .maybeSingle();
+        if (found) contactId = found.id;
+      }
+
+      // Only create if no match found
       if (!contactId) {
         const { data: newContact } = await supabase
           .from("contacts")
@@ -215,7 +237,7 @@ async function syncTenant(
             cpf_cnpj: cpf,
             email: order.contato.email || null,
             phone: order.contato.fone || null,
-            external_id: String(order.contato.id),
+            external_id: blingContactId,
             source: "bling",
           })
           .select("id")
