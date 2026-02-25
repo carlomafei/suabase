@@ -23,7 +23,7 @@ export interface ProviderConfig {
   category: IntegrationCategory;
   description: string;
   available: boolean;
-  credentialFields: { key: string; label: string; type: "text" | "password"; placeholder: string }[];
+  credentialFields: { key: string; label: string; type: "text" | "password" | "select"; placeholder: string; options?: { value: string; label: string }[] }[];
 }
 
 export const PROVIDER_CONFIGS: ProviderConfig[] = [
@@ -55,6 +55,11 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
     description: "Enriqueça dados de contatos via provedores de dados.",
     available: true,
     credentialFields: [
+      { key: "provider_type", label: "Provedor", type: "select", placeholder: "Selecione o provedor", options: [
+        { value: "neoway", label: "Neoway" },
+        { value: "assertiva", label: "Assertiva" },
+        { value: "bigdatacorp", label: "BigDataCorp" },
+      ]},
       { key: "api_url", label: "URL da API", type: "text", placeholder: "https://api.exemplo.com" },
       { key: "api_key", label: "API Key", type: "password", placeholder: "Chave de acesso da API" },
     ],

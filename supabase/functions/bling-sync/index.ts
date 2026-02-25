@@ -246,8 +246,20 @@ async function syncTenant(
         if (newContact) {
           contactId = newContact.id;
           newContacts++;
+
+          // Queue enrichment job for the new contact
+          try {
+            await supabase.from("job_queue").insert({
+              tenant_id: tenantId,
+              job_type: "enrich_contact",
+              payload: { contact_id: newContact.id, cpf: cpf, nome: order.contato.nome } as any,
+              queue: "default",
+              status: "pending",
+            });
+          } catch (enrichErr: any) {
+            console.warn(`bling-sync: failed to queue enrichment for contact ${newContact.id}:`, enrichErr.message);
+          }
         }
-      }
     }
 
     if (existing) {

@@ -120,16 +120,45 @@ const Contacts = () => {
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
   const handleEnrich = async (contact: ContactRow) => {
+    if (!tenantId) return;
     setEnrichingId(contact.id);
-    // Simulate enrichment — in production this would call the data broker edge function
-    await new Promise((r) => setTimeout(r, 1500));
-    await supabase
-      .from("contacts")
-      .update({ enriched_at: new Date().toISOString() })
-      .eq("id", contact.id);
-    toast.success(`Dados de ${contact.name} enriquecidos!`);
-    setEnrichingId(null);
-    fetchContacts();
+    try {
+      const { data, error } = await supabase.functions.invoke("data-broker", {
+        body: {
+          tenant_id: tenantId,
+          contact_id: contact.id,
+          cpf: contact.cpf_cnpj,
+          nome: contact.name,
+        },
+      });
+
+      if (error) {
+        const msg = error.message || "";
+        if (msg.includes("não configurado") || msg.includes("not configured")) {
+          toast.error("Configure um Data Broker em Configurações > Integrações antes de enriquecer.");
+        } else {
+          toast.error(`Erro ao enriquecer: ${msg}`);
+        }
+        return;
+      }
+
+      // Check for application-level errors in the response
+      if (data?.error) {
+        if (data.error.includes("não configurado") || data.error.includes("not configured")) {
+          toast.error("Configure um Data Broker em Configurações > Integrações antes de enriquecer.");
+        } else {
+          toast.error(`Erro ao enriquecer: ${data.error}`);
+        }
+        return;
+      }
+
+      toast.success(`Dados de ${contact.name} enriquecidos!`);
+      fetchContacts();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao enriquecer contato");
+    } finally {
+      setEnrichingId(null);
+    }
   };
 
   const filtered = contacts.filter((c) => {

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIntegrations, PROVIDER_CONFIGS, type ProviderConfig, type IntegrationCategory } from "@/hooks/useIntegrations";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
@@ -50,8 +51,16 @@ const IntegrationSettings = () => {
   const openConfig = (config: ProviderConfig) => {
     const existing = getIntegration(config.id);
     const creds = (existing?.credentials || {}) as Record<string, string>;
+    const settings = (existing?.settings || {}) as Record<string, string>;
     const initial: Record<string, string> = {};
-    config.credentialFields.forEach((f) => { initial[f.key] = creds[f.key] || ""; });
+    config.credentialFields.forEach((f) => {
+      // provider_type lives in settings, not credentials
+      if (f.key === "provider_type") {
+        initial[f.key] = settings[f.key] || "";
+      } else {
+        initial[f.key] = creds[f.key] || "";
+      }
+    });
     setFormValues(initial);
     setShowPasswords({});
     setEditingProvider(config);
@@ -62,7 +71,18 @@ const IntegrationSettings = () => {
     const hasEmpty = editingProvider.credentialFields.some((f) => !formValues[f.key]?.trim());
     if (hasEmpty) { toast.error("Preencha todos os campos"); return; }
 
-    const ok = await saveCredentials(editingProvider.id, formValues);
+    // Separate settings fields (like provider_type) from credentials
+    const credentials: Record<string, string> = {};
+    const settings: Record<string, any> = {};
+    editingProvider.credentialFields.forEach((f) => {
+      if (f.key === "provider_type") {
+        settings[f.key] = formValues[f.key];
+      } else {
+        credentials[f.key] = formValues[f.key];
+      }
+    });
+
+    const ok = await saveCredentials(editingProvider.id, credentials, Object.keys(settings).length > 0 ? settings : undefined);
     if (ok) {
       toast.success(`${editingProvider.name} configurado com sucesso!`);
       setEditingProvider(null);
@@ -234,24 +254,40 @@ const IntegrationSettings = () => {
             {editingProvider?.credentialFields.map((field) => (
               <div key={field.key} className="space-y-1.5">
                 <Label className="text-xs">{field.label}</Label>
-                <div className="relative">
-                  <Input
-                    type={field.type === "password" && !showPasswords[field.key] ? "password" : "text"}
-                    placeholder={field.placeholder}
+                {field.type === "select" && field.options ? (
+                  <Select
                     value={formValues[field.key] || ""}
-                    onChange={(e) => setFormValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                    className="pr-10"
-                  />
-                  {field.type === "password" && (
-                    <button
-                      type="button"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setShowPasswords((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
-                    >
-                      {showPasswords[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  )}
-                </div>
+                    onValueChange={(val) => setFormValues((prev) => ({ ...prev, [field.key]: val }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={field.placeholder} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.options.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="relative">
+                    <Input
+                      type={field.type === "password" && !showPasswords[field.key] ? "password" : "text"}
+                      placeholder={field.placeholder}
+                      value={formValues[field.key] || ""}
+                      onChange={(e) => setFormValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                      className="pr-10"
+                    />
+                    {field.type === "password" && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowPasswords((prev) => ({ ...prev, [field.key]: !prev[field.key] }))}
+                      >
+                        {showPasswords[field.key] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
