@@ -34,6 +34,171 @@ async function blingFetch(path: string, accessToken: string) {
   return res.json();
 }
 
+async function refreshTokenIfNeeded(
+  supabase: any,
+  integration: any,
+  creds: Record<string, string>
+): Promise<{ accessToken: string; creds: Record<string, string> }> {
+  if (creds.expires_at && new Date(creds.expires_at) <= new Date()) {
+    if (!creds.refresh_token || !creds.client_id || !creds.client_secret) {
+      throw new Error("Token expirado e refresh não disponível");
+    }
+
+    const basicAuth = btoa(`${creds.client_id}:${creds.client_secret}`);
+    const refreshRes = await fetch("https://www.bling.com.br/Api/v3/oauth/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: `Basic ${basicAuth}`,
+      },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: creds.refresh_token,
+      }),
+    });
+
+    if (!refreshRes.ok) {
+      const errBody = await refreshRes.text();
+      console.error("Bling token refresh failed:", errBody);
+      throw new Error(`Falha ao renovar token do Bling: ${errBody}`);
+    }
+
+    const tokenData = await refreshRes.json();
+    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+
+    const newCreds = {
+      ...creds,
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: expiresAt,
+    };
+
+    await supabase
+      .from("tenant_integrations")
+      .update({ credentials: newCreds as any, updated_at: new Date().toISOString() })
+      .eq("id", integration.id);
+
+    return { accessToken: tokenData.access_token, creds: newCreds };
+  }
+
+  return { accessToken: creds.access_token, creds };
+}
+
+async function syncTenant(
+  supabase: any,
+  tenantId: string,
+  integration: any
+): Promise<{ synced: number; updated: number; new_contacts: number; total_fetched: number }> {
+  let creds = integration.credentials as Record<string, string>;
+  const cursor = integration.sync_cursor || null;
+
+  const { accessToken } = await refreshTokenIfNeeded(supabase, integration, creds);
+
+  // Incremental sync: fetch orders modified after cursor
+  let path = "/pedidos/vendas?pagina=1&limite=100&criterio=3";
+  if (cursor) {
+    path += `&dataAlteracaoInicio=${cursor}`;
+  }
+
+  const result = await blingFetch(path, accessToken);
+  const orders: BlingOrder[] = result?.data || [];
+
+  let synced = 0;
+  let skipped = 0;
+  let newContacts = 0;
+
+  for (const order of orders) {
+    const blingId = String(order.id);
+
+    const { data: existing } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("external_id", blingId)
+      .maybeSingle();
+
+    // Upsert contact
+    let contactId: string | null = null;
+    if (order.contato) {
+      const cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
+
+      if (cpf) {
+        const { data: existingContact } = await supabase
+          .from("contacts")
+          .select("id")
+          .eq("tenant_id", tenantId)
+          .eq("cpf_cnpj", cpf)
+          .maybeSingle();
+
+        if (existingContact) {
+          contactId = existingContact.id;
+        }
+      }
+
+      if (!contactId) {
+        const { data: newContact } = await supabase
+          .from("contacts")
+          .insert({
+            tenant_id: tenantId,
+            name: order.contato.nome,
+            cpf_cnpj: cpf,
+            email: order.contato.email || null,
+            phone: order.contato.fone || null,
+            external_id: String(order.contato.id),
+            source: "bling",
+          })
+          .select("id")
+          .single();
+
+        if (newContact) {
+          contactId = newContact.id;
+          newContacts++;
+        }
+      }
+    }
+
+    if (existing) {
+      await supabase
+        .from("orders")
+        .update({
+          status: order.situacao?.descricao || "pendente",
+          total_value: order.totalProdutos || 0,
+          contact_id: contactId,
+          order_date: order.data || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id);
+      skipped++;
+    } else {
+      await supabase.from("orders").insert({
+        tenant_id: tenantId,
+        external_id: blingId,
+        contact_id: contactId,
+        total_value: order.totalProdutos || 0,
+        status: order.situacao?.descricao || "pendente",
+        order_date: order.data || null,
+        marketplace: "bling",
+        synced_from: "bling",
+        metadata: { bling_numero: order.numero } as any,
+      });
+      synced++;
+    }
+  }
+
+  // Update sync cursor
+  const newCursor = new Date().toISOString().split("T")[0];
+  await supabase
+    .from("tenant_integrations")
+    .update({
+      sync_cursor: newCursor,
+      last_sync_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", integration.id);
+
+  return { synced, updated: skipped, new_contacts: newContacts, total_fetched: orders.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -44,7 +209,55 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Auth check
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      // empty body is ok for cron
+    }
+
+    const isCron = body?.cron === true;
+
+    if (isCron) {
+      // ===== CRON MODE: sync all active Bling integrations =====
+      console.log("bling-sync: CRON mode — syncing all active tenants");
+
+      const { data: integrations, error } = await supabase
+        .from("tenant_integrations")
+        .select("id, tenant_id, credentials, sync_cursor")
+        .eq("provider", "bling")
+        .eq("is_active", true);
+
+      if (error) {
+        throw new Error(`Failed to fetch integrations: ${error.message}`);
+      }
+
+      const results: Array<{ tenant_id: string; success: boolean; data?: any; error?: string }> = [];
+
+      for (const integration of integrations || []) {
+        const creds = integration.credentials as Record<string, string> | null;
+        if (!creds?.access_token) {
+          results.push({ tenant_id: integration.tenant_id, success: false, error: "No access_token" });
+          continue;
+        }
+
+        try {
+          const data = await syncTenant(supabase, integration.tenant_id, integration);
+          results.push({ tenant_id: integration.tenant_id, success: true, data });
+          console.log(`bling-sync cron: tenant ${integration.tenant_id} — ${data.synced} new, ${data.updated} updated`);
+        } catch (err: any) {
+          console.error(`bling-sync cron: tenant ${integration.tenant_id} failed:`, err.message);
+          results.push({ tenant_id: integration.tenant_id, success: false, error: err.message });
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, mode: "cron", results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ===== MANUAL MODE: requires auth + tenant_id =====
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Não autorizado" }), {
@@ -65,7 +278,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { tenant_id } = await req.json();
+    const tenant_id = body?.tenant_id;
     if (!tenant_id) {
       return new Response(JSON.stringify({ error: "tenant_id obrigatório" }), {
         status: 400,
@@ -89,173 +302,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    let creds = integration.credentials as Record<string, string>;
-    let accessToken = creds.access_token;
-    const cursor = (integration as any).sync_cursor || null;
-
-    // Auto-refresh token if expired
-    if (creds.expires_at && new Date(creds.expires_at) <= new Date()) {
-      if (!creds.refresh_token || !creds.client_id || !creds.client_secret) {
-        return new Response(
-          JSON.stringify({ error: "Token expirado e refresh não disponível" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const basicAuth = btoa(`${creds.client_id}:${creds.client_secret}`);
-      const refreshRes = await fetch("https://www.bling.com.br/Api/v3/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Authorization: `Basic ${basicAuth}`,
-        },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: creds.refresh_token,
-        }),
-      });
-
-      if (!refreshRes.ok) {
-        const errBody = await refreshRes.text();
-        console.error("Bling token refresh failed:", errBody);
-        return new Response(
-          JSON.stringify({ error: "Falha ao renovar token do Bling", details: errBody }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const tokenData = await refreshRes.json();
-      const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-
-      creds = {
-        ...creds,
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: expiresAt,
-      };
-
-      await supabase
-        .from("tenant_integrations")
-        .update({ credentials: creds as any, updated_at: new Date().toISOString() })
-        .eq("id", integration.id);
-
-      accessToken = tokenData.access_token;
-    }
-
-    // Incremental sync: fetch orders modified after cursor
-    let path = "/pedidos/vendas?pagina=1&limite=100&criterio=3";
-    if (cursor) {
-      path += `&dataAlteracaoInicio=${cursor}`;
-    }
-
-    const result = await blingFetch(path, accessToken);
-    const orders: BlingOrder[] = result?.data || [];
-
-    let synced = 0;
-    let skipped = 0;
-    let newContacts = 0;
-
-    for (const order of orders) {
-      const blingId = String(order.id);
-
-      // 1. Idempotency check by bling_id (external_id)
-      const { data: existing } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("tenant_id", tenant_id)
-        .eq("external_id", blingId)
-        .maybeSingle();
-
-      // 2. Upsert contact with CPF normalization (handled by DB trigger)
-      let contactId: string | null = null;
-      if (order.contato) {
-        const cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
-
-        // Deduplication: find by CPF first
-        if (cpf) {
-          const { data: existingContact } = await supabase
-            .from("contacts")
-            .select("id")
-            .eq("tenant_id", tenant_id)
-            .eq("cpf_cnpj", cpf)
-            .maybeSingle();
-
-          if (existingContact) {
-            contactId = existingContact.id;
-          }
-        }
-
-        if (!contactId) {
-          const { data: newContact } = await supabase
-            .from("contacts")
-            .insert({
-              tenant_id,
-              name: order.contato.nome,
-              cpf_cnpj: cpf,
-              email: order.contato.email || null,
-              phone: order.contato.fone || null,
-              external_id: String(order.contato.id),
-              source: "bling",
-            })
-            .select("id")
-            .single();
-
-          if (newContact) {
-            contactId = newContact.id;
-            newContacts++;
-          }
-        }
-      }
-
-      if (existing) {
-        // Update existing order
-        await supabase
-          .from("orders")
-          .update({
-            status: order.situacao?.descricao || "pendente",
-            total_value: order.totalProdutos || 0,
-            contact_id: contactId,
-            order_date: order.data || null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-        skipped++;
-      } else {
-        // Insert new order
-        await supabase.from("orders").insert({
-          tenant_id,
-          external_id: blingId,
-          contact_id: contactId,
-          total_value: order.totalProdutos || 0,
-          status: order.situacao?.descricao || "pendente",
-          order_date: order.data || null,
-          marketplace: "bling",
-          synced_from: "bling",
-          metadata: { bling_numero: order.numero } as any,
-        });
-        synced++;
-      }
-    }
-
-    // Update sync cursor
-    const newCursor = new Date().toISOString().split("T")[0];
-    await supabase
-      .from("tenant_integrations")
-      .update({
-        sync_cursor: newCursor,
-        last_sync_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", integration.id);
+    const result = await syncTenant(supabase, tenant_id, integration);
 
     return new Response(
       JSON.stringify({
         success: true,
-        synced,
-        updated: skipped,
-        new_contacts: newContacts,
-        total_fetched: orders.length,
-        cursor: newCursor,
+        mode: "manual",
+        ...result,
+        cursor: new Date().toISOString().split("T")[0],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

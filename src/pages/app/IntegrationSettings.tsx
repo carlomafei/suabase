@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useIntegrations, PROVIDER_CONFIGS, type ProviderConfig, type IntegrationCategory } from "@/hooks/useIntegrations";
+import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "@/hooks/useTenant";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plug, ShoppingBag, Database, MessageCircle, Check, X, Loader2, Trash2, Eye, EyeOff, ExternalLink } from "lucide-react";
+import { Plug, ShoppingBag, Database, MessageCircle, Check, X, Loader2, Trash2, Eye, EyeOff, ExternalLink, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,23 @@ const IntegrationSettings = () => {
   const [editingProvider, setEditingProvider] = useState<ProviderConfig | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [syncing, setSyncing] = useState(false);
+
+  const handleBlingSync = useCallback(async () => {
+    if (!tenantId || syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('bling-sync', {
+        body: { tenant_id: tenantId },
+      });
+      if (error) throw error;
+      toast.success(`Sincronizado: ${data?.synced ?? 0} novos, ${data?.updated ?? 0} atualizados, ${data?.new_contacts ?? 0} contatos criados`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao sincronizar com o Bling");
+    } finally {
+      setSyncing(false);
+    }
+  }, [tenantId, syncing]);
 
   const canManage = can("configure_integrations");
 
@@ -148,10 +166,22 @@ const IntegrationSettings = () => {
                               </Button>
                             )}
                             {config.id === "bling" && isBlingOAuthConnected() && (
-                              <Badge className="bg-primary/15 text-primary text-xs">
-                                <Check className="h-3 w-3 mr-1" />
-                                OAuth Conectado
-                              </Badge>
+                              <>
+                                <Badge className="bg-primary/15 text-primary text-xs">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  OAuth Conectado
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs"
+                                  onClick={handleBlingSync}
+                                  disabled={syncing}
+                                >
+                                  {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                                  Sincronizar Pedidos
+                                </Button>
+                              </>
                             )}
                             {isConnected && (
                               <>
