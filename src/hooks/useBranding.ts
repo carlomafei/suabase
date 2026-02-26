@@ -14,7 +14,7 @@ export interface BrandingSettings {
 }
 
 const defaultBranding: BrandingSettings = {
-  platform_name: "Sua Base",
+  platform_name: "Taqt",
   logo_url: "",
   primary_color: "152 76% 46%",
   secondary_color: "220 16% 12%",

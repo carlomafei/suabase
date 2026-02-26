@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Database, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import logoTaqt from "@/assets/logo-taqt.png";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
@@ -58,12 +59,11 @@ const Auth = () => {
         <div className="absolute inset-0 glow-top" />
         <div className="relative z-10 max-w-md px-8">
           <div className="flex items-center gap-2 mb-8">
-            <Database className="h-8 w-8 text-primary" />
-            <span className="font-display font-bold text-2xl">Sua Base</span>
+            <img src={logoTaqt} alt="Taqt" className="h-8 max-w-[160px] object-contain" />
           </div>
           <h2 className="font-display text-3xl font-bold mb-4">
             Pare de alugar clientes.{" "}
-            <span className="text-gradient">Construa sua base.</span>
+            <span className="text-gradient">Construa sua base própria.</span>
           </h2>
           <p className="text-muted-foreground">
             Capture contatos do marketplace, enriqueça com WhatsApp e e-mail, e fale direto com seu cliente.
@@ -75,8 +75,7 @@ const Auth = () => {
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
-            <Database className="h-7 w-7 text-primary" />
-            <span className="font-display font-bold text-xl">Sua Base</span>
+            <img src={logoTaqt} alt="Taqt" className="h-7 max-w-[140px] object-contain" />
           </div>
 
           <h1 className="font-display text-2xl font-bold mb-2">

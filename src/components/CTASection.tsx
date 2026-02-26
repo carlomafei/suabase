@@ -11,7 +11,7 @@ const CTASection = () => {
 
           <div className="relative z-10">
             <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-              Comece a construir <span className="text-gradient">sua base</span> hoje
+              Comece a construir <span className="text-gradient">sua base própria</span> hoje
             </h2>
             <p className="text-muted-foreground text-lg mb-8 max-w-lg mx-auto">
               Pare de depender 100% dos marketplaces. Cada venda é uma oportunidade de criar um relacionamento direto.

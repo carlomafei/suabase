@@ -322,7 +322,7 @@ const BrandingSettings = () => {
           </div>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">Ocultar marca "Sua Base"</p>
+              <p className="text-sm font-medium">Ocultar marca "Taqt"</p>
               <p className="text-xs text-muted-foreground">
                 Remove referências à plataforma original (disponível em planos avançados)
               </p>
