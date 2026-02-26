@@ -68,12 +68,13 @@ const AppLayout = () => {
         <div className="flex items-center h-12 px-4 gap-4">
           {/* Logo */}
           <NavLink to="/app" className="flex items-center gap-2 shrink-0 mr-2">
-            {branding.logo_url && (
+            {branding.logo_url ? (
               <img src={branding.logo_url} alt="Logo" className="h-6 max-w-[120px] object-contain" />
+            ) : (
+              <span className="font-display font-bold text-base hidden sm:inline">
+                {branding.platform_name || "Sua Base"}
+              </span>
             )}
-            <span className="font-display font-bold text-base hidden sm:inline">
-              {branding.platform_name || "Sua Base"}
-            </span>
           </NavLink>
 
           {/* Plan badge */}
