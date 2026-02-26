@@ -72,7 +72,7 @@ const AppLayout = () => {
               <img src={branding.logo_url} alt="Logo" className="h-6 max-w-[120px] object-contain" />
             ) : (
               <span className="font-display font-bold text-base hidden sm:inline">
-                {branding.platform_name || "Sua Base"}
+                {branding.platform_name || "Taqt"}
               </span>
             )}
           </NavLink>

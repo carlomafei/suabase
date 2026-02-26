@@ -26,7 +26,7 @@ const HeroSection = () => {
           {/* Headline */}
           <h1 className="font-display text-5xl md:text-7xl font-bold leading-[1.1] tracking-tight mb-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             Pare de alugar clientes.{" "}
-            <span className="text-gradient">Construa sua base.</span>
+            <span className="text-gradient">Construa sua base própria.</span>
           </h1>
 
           {/* Subheadline */}
@@ -53,7 +53,7 @@ const HeroSection = () => {
             {[
               { icon: Users, value: "12.400+", label: "Contatos capturados" },
               { icon: TrendingUp, value: "3.2x", label: "Mais recompra" },
-              { icon: Shield, value: "100%", label: "Seus dados, sua base" },
+              { icon: Shield, value: "100%", label: "Seus dados, seu controle" },
             ].map(({ icon: Icon, value, label }) => (
               <div key={label} className="flex flex-col items-center gap-1">
                 <Icon className="h-5 w-5 text-primary mb-1" />

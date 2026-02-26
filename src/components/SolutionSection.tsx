@@ -5,7 +5,7 @@ const steps = [
     icon: Zap,
     step: "01",
     title: "Cliente compra no marketplace",
-    description: "Cada venda no Mercado Livre, Shopee ou Amazon aciona automaticamente o Sua Base.",
+    description: "Cada venda no Mercado Livre, Shopee ou Amazon aciona automaticamente o Taqt.",
   },
   {
     icon: MessageCircle,
@@ -41,7 +41,7 @@ const SolutionSection = () => {
             <span className="text-gradient">aquisição de cliente</span>
           </h2>
           <p className="text-muted-foreground text-lg">
-            Com o Sua Base, cada venda no marketplace gera um cliente para sua base própria.
+            Com o Taqt, cada venda no marketplace gera um cliente para sua base própria.
           </p>
         </div>
 
