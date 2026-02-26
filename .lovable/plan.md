@@ -1,32 +1,25 @@
 
 
-## Plano: Corrigir upload de logo — salvar automaticamente + cache busting
+## Plano: Esconder texto "Sua Base" quando logo existir
 
-### Problema identificado
+### Problema
 
-1. **Upload não persiste**: `handleLogoUpload` atualiza apenas o estado local do formulário (`setForm`), mas **não chama `saveBranding()`**. O mesmo ocorre com `handleLogoRemove`. A logo só é salva no banco se o usuário clicar "Salvar alterações" depois.
-
-2. **Cache do navegador**: A URL pública é sempre a mesma (`{tenantId}/logo.png`), então ao re-enviar uma nova imagem, o navegador pode exibir a versão antiga.
+No `AppLayout.tsx` (linha 74-76), o `<span>` com `branding.platform_name || "Sua Base"` é renderizado **sempre**, independentemente de haver logo configurada. O mesmo padrão pode existir no `Footer.tsx`.
 
 ### Alterações
 
 | Arquivo | Mudança |
 |---|---|
-| `src/pages/app/BrandingSettings.tsx` | Chamar `saveBranding()` automaticamente após upload e remoção; adicionar parâmetro de cache busting (`?t=timestamp`) na URL |
+| `src/components/AppLayout.tsx` | Linha 74-76: Renderizar o `<span>` com nome da plataforma **apenas quando não houver** `branding.logo_url`. Se houver logo, exibe só a imagem. |
+| `src/components/Footer.tsx` | Mesma lógica: exibir nome como texto apenas quando não houver logo. |
 
 ### Detalhes técnicos
 
-**`handleLogoUpload`** (linhas 86-115):
-- Após obter a URL pública, adicionar `?t=${Date.now()}` para invalidar cache
-- Chamar `saveBranding({ ...form, logo_url: urlComTimestamp })` imediatamente após o upload
-- Remover a necessidade de clicar "Salvar" separadamente para a logo
+**AppLayout.tsx** (linhas 71-76):
+```text
+Antes:  <img> (se logo_url) + <span>nome</span> (sempre)
+Depois: <img> (se logo_url) OU <span>nome</span> (se não houver logo_url)
+```
 
-**`handleLogoRemove`** (linhas 117-131):
-- Após limpar `logo_url`, chamar `saveBranding({ ...form, logo_url: "" })` automaticamente
-
-### Resultado
-
-- Ao enviar uma logo, ela será salva automaticamente no banco e aparecerá imediatamente no header e footer
-- Ao remover, a remoção também será persistida automaticamente
-- Re-uploads sempre mostrarão a imagem nova graças ao parâmetro de cache busting
+Condição: `{branding.logo_url ? <img> : <span>{platform_name}</span>}`
 
