@@ -88,6 +88,16 @@ async function fetchOrderDetail(orderId: number, accessToken: string): Promise<B
   }
 }
 
+async function fetchBlingContact(contactId: number, accessToken: string): Promise<{ cpf_cnpj?: string; numeroDocumento?: string } | null> {
+  try {
+    const result = await blingFetch(`/contatos/${contactId}`, accessToken);
+    return result?.data || null;
+  } catch (err: any) {
+    console.warn(`Failed to fetch Bling contact ${contactId}:`, err.message);
+    return null;
+  }
+}
+
 async function refreshTokenIfNeeded(
   supabase: any,
   integration: any,
@@ -193,8 +203,16 @@ async function syncTenant(
     // Upsert contact with 3-tier deduplication
     let contactId: string | null = null;
     if (order.contato) {
-      const cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
+      let cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
       const blingContactId = String(order.contato.id);
+
+      // Se cpf_cnpj veio vazio do pedido, buscar do cadastro de contatos do Bling
+      if (!cpf && order.contato.id) {
+        const blingContact = await fetchBlingContact(order.contato.id, accessToken);
+        await delay(150); // rate limiting
+        const rawCpf = (blingContact as any)?.cpf_cnpj || (blingContact as any)?.numeroDocumento;
+        if (rawCpf) cpf = rawCpf.replace(/[^0-9]/g, "");
+      }
 
       // Tier 1: By CPF/CNPJ (most reliable)
       if (cpf) {
@@ -204,7 +222,11 @@ async function syncTenant(
           .eq("tenant_id", tenantId)
           .eq("cpf_cnpj", cpf)
           .maybeSingle();
-        if (found) contactId = found.id;
+        if (found) {
+          contactId = found.id;
+          // Update contact CPF if it was missing
+          await supabase.from("contacts").update({ cpf_cnpj: cpf }).eq("id", found.id).is("cpf_cnpj", null);
+        }
       }
 
       // Tier 2: By external_id (Bling contact ID)
