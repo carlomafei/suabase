@@ -1,37 +1,46 @@
 
 
-## Plano: Exibir "Número Loja Virtual" como ID da Venda
+## Plano: Buscar CPF/CNPJ do cadastro de contatos do Bling
 
 ### Problema
-Atualmente o campo "ID Pedido" na página de Pedidos exibe o `external_id` (que é o ID interno do Bling, ex: `19283746`). O usuário precisa ver o **"Número Loja Virtual"** que vem nos detalhes da venda no Bling (campo `numeroLojaVirtual`).
+O CPF/CNPJ vem do campo `order.contato.cpf_cnpj` na listagem de vendas do Bling, mas frequentemente está vazio. A informação completa está no cadastro do contato (endpoint `GET /contatos/{id}`).
 
-### Alterações
+### Alteração
 
 | # | Arquivo | Mudança |
 |---|---------|---------|
-| 1 | `supabase/functions/bling-sync/index.ts` | Adicionar `numeroLojaVirtual` na interface `BlingOrderDetail`; extrair o campo do detalhe da venda e salvar em `metadata.numero_loja_virtual` (tanto no insert quanto no update) |
-| 2 | `src/pages/app/Orders.tsx` | No campo "ID Pedido", priorizar `metadata.numero_loja_virtual` sobre `external_id`; atualizar a interface `Order` para incluir `metadata` |
+| 1 | `supabase/functions/bling-sync/index.ts` | Adicionar função `fetchBlingContact(contactId, accessToken)` que chama `GET /contatos/{id}` e retorna o CPF/CNPJ. Na lógica de sync, quando `order.contato.cpf_cnpj` estiver vazio, buscar do cadastro do contato antes da deduplicação. |
 
 ### Detalhe técnico
 
-**bling-sync** — na função `syncTenant`, após `fetchOrderDetail`:
+**Nova função:**
 ```typescript
-const numeroLojaVirtual = detail?.numeroLojaVirtual || null;
-```
-E no insert/update do pedido, incluir no `metadata`:
-```typescript
-metadata: { 
-  bling_numero: order.numero, 
-  numero_loja_virtual: numeroLojaVirtual 
+async function fetchBlingContact(contactId: number, accessToken: string): Promise<{ cpf_cnpj?: string } | null> {
+  try {
+    const result = await blingFetch(`/contatos/${contactId}`, accessToken);
+    return result?.data || null;
+  } catch (err: any) {
+    console.warn(`Failed to fetch Bling contact ${contactId}:`, err.message);
+    return null;
+  }
 }
 ```
 
-**Orders.tsx** — na coluna "ID Pedido":
+**No loop de sync**, antes da deduplicação:
 ```typescript
-// Priorizar numero_loja_virtual > external_id > id truncado
-{order.numero_loja_virtual || order.external_id || order.id.slice(0, 8)}
+// Se cpf_cnpj veio vazio do pedido, buscar do cadastro
+let cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
+if (!cpf && order.contato.id) {
+  const blingContact = await fetchBlingContact(order.contato.id, accessToken);
+  await delay(150); // rate limiting
+  const rawCpf = blingContact?.cpf_cnpj || blingContact?.numeroDocumento;
+  if (rawCpf) cpf = rawCpf.replace(/[^0-9]/g, "");
+}
 ```
 
+Isso também atualiza o contato existente no banco se o CPF estava faltando.
+
 ### Nota
-Pedidos já sincronizados não terão o campo `numero_loja_virtual` até a próxima sincronização. Será necessário clicar "Sincronizar Bling" para atualizar os pedidos existentes com o novo campo.
+- A página de Pedidos já exibe `contact_cpf` do contato salvo no banco — não precisa de alteração no frontend
+- Pedidos existentes terão o CPF atualizado na próxima sincronização, desde que o contato seja encontrado e atualizado
 
