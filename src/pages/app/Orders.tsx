@@ -43,6 +43,7 @@ interface Order {
   order_date: string | null;
   created_at: string;
   items?: any;
+  metadata?: { numero_loja_virtual?: string; bling_numero?: string } | null;
   contact_name?: string;
   contact_cpf?: string;
   contact_whatsapp?: string;
@@ -142,6 +143,7 @@ const Orders = () => {
         order_date: o.order_date,
         created_at: o.created_at,
         items: o.items,
+        metadata: o.metadata,
         contact_name: o.contacts?.name,
         contact_cpf: o.contacts?.cpf_cnpj,
         contact_whatsapp: o.contacts?.whatsapp,
@@ -304,7 +306,7 @@ const Orders = () => {
                         {format(new Date(orderDate), "dd/MM/yyyy", { locale: ptBR })}
                       </TableCell>
                       <TableCell className="text-xs font-mono">
-                        {order.external_id || order.id.slice(0, 8)}
+                        {(order.metadata as any)?.numero_loja_virtual || order.external_id || order.id.slice(0, 8)}
                       </TableCell>
                       <TableCell className="text-xs font-medium max-w-[160px] truncate">
                         {order.contact_name || "—"}

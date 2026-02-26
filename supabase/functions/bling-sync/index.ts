@@ -42,6 +42,7 @@ interface BlingOrderDetail {
   }>;
   loja?: { id: number; nome?: string };
   canal?: string;
+  numeroLojaVirtual?: string;
 }
 
 const BLING_API = "https://www.bling.com.br/Api/v3";
@@ -187,6 +188,7 @@ async function syncTenant(
 
     // Extract marketplace from detail
     const marketplace = detail?.loja?.nome || detail?.canal || "bling";
+    const numeroLojaVirtual = detail?.numeroLojaVirtual || null;
 
     // Upsert contact with 3-tier deduplication
     let contactId: string | null = null;
@@ -260,6 +262,7 @@ async function syncTenant(
             console.warn(`bling-sync: failed to queue enrichment for contact ${newContact.id}:`, enrichErr.message);
           }
         }
+      }
     }
 
     if (existing) {
@@ -272,6 +275,7 @@ async function syncTenant(
           order_date: order.data || null,
           items: items as any,
           marketplace: marketplace,
+          metadata: { bling_numero: order.numero, numero_loja_virtual: numeroLojaVirtual } as any,
           updated_at: new Date().toISOString(),
         })
         .eq("id", existing.id);
@@ -287,7 +291,7 @@ async function syncTenant(
         items: items as any,
         marketplace: marketplace,
         synced_from: "bling",
-        metadata: { bling_numero: order.numero } as any,
+        metadata: { bling_numero: order.numero, numero_loja_virtual: numeroLojaVirtual } as any,
       });
       synced++;
     }
