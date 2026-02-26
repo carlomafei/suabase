@@ -88,7 +88,10 @@ async function fetchOrderDetail(orderId: number, accessToken: string): Promise<B
   }
 }
 
-async function fetchBlingContact(contactId: number, accessToken: string): Promise<{ cpf_cnpj?: string; numeroDocumento?: string } | null> {
+async function fetchBlingContact(contactId: number, accessToken: string): Promise<{
+  cpf_cnpj?: string; numeroDocumento?: string;
+  nome?: string; email?: string; celular?: string; fone?: string;
+} | null> {
   try {
     const result = await blingFetch(`/contatos/${contactId}`, accessToken);
     return result?.data || null;
@@ -203,15 +206,27 @@ async function syncTenant(
     // Upsert contact with 3-tier deduplication
     let contactId: string | null = null;
     if (order.contato) {
-      let cpf = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
       const blingContactId = String(order.contato.id);
 
-      // Se cpf_cnpj veio vazio do pedido, buscar do cadastro de contatos do Bling
-      if (!cpf && order.contato.id) {
+      // Dados iniciais do pedido (fallback)
+      let contactName = order.contato.nome;
+      let cpf: string | null = order.contato.cpf_cnpj?.replace(/[^0-9]/g, "") || null;
+      let email: string | null = order.contato.email || null;
+      let phone: string | null = order.contato.fone || null;
+
+      // SEMPRE buscar dados completos do cadastro de Clientes/Fornecedores do Bling
+      if (order.contato.id) {
         const blingContact = await fetchBlingContact(order.contato.id, accessToken);
         await delay(150); // rate limiting
-        const rawCpf = (blingContact as any)?.cpf_cnpj || (blingContact as any)?.numeroDocumento;
-        if (rawCpf) cpf = rawCpf.replace(/[^0-9]/g, "");
+        if (blingContact) {
+          // Dados do cadastro prevalecem sobre dados do pedido
+          const rawCpf = blingContact.cpf_cnpj || blingContact.numeroDocumento;
+          if (rawCpf) cpf = rawCpf.replace(/[^0-9]/g, "") || cpf;
+          if (blingContact.nome) contactName = blingContact.nome;
+          if (blingContact.email) email = blingContact.email;
+          if (blingContact.celular || blingContact.fone) phone = blingContact.celular || blingContact.fone;
+          console.log(`bling-sync: contact ${blingContactId} enriched from registry — cpf: ${cpf ? "yes" : "no"}, email: ${email ? "yes" : "no"}, phone: ${phone ? "yes" : "no"}`);
+        }
       }
 
       // Tier 1: By CPF/CNPJ (most reliable)
@@ -222,11 +237,7 @@ async function syncTenant(
           .eq("tenant_id", tenantId)
           .eq("cpf_cnpj", cpf)
           .maybeSingle();
-        if (found) {
-          contactId = found.id;
-          // Update contact CPF if it was missing
-          await supabase.from("contacts").update({ cpf_cnpj: cpf }).eq("id", found.id).is("cpf_cnpj", null);
-        }
+        if (found) contactId = found.id;
       }
 
       // Tier 2: By external_id (Bling contact ID)
@@ -241,14 +252,26 @@ async function syncTenant(
       }
 
       // Tier 3: By exact name match
-      if (!contactId && order.contato.nome) {
+      if (!contactId && contactName) {
         const { data: found } = await supabase
           .from("contacts")
           .select("id")
           .eq("tenant_id", tenantId)
-          .eq("name", order.contato.nome)
+          .eq("name", contactName)
           .maybeSingle();
         if (found) contactId = found.id;
+      }
+
+      // Update existing contact with enriched data from registry
+      if (contactId) {
+        const updates: Record<string, any> = {};
+        if (cpf) updates.cpf_cnpj = cpf;
+        if (email) updates.email = email;
+        if (phone) updates.phone = phone;
+        if (contactName) updates.name = contactName;
+        if (Object.keys(updates).length > 0) {
+          await supabase.from("contacts").update(updates).eq("id", contactId);
+        }
       }
 
       // Only create if no match found
@@ -257,10 +280,10 @@ async function syncTenant(
           .from("contacts")
           .insert({
             tenant_id: tenantId,
-            name: order.contato.nome,
+            name: contactName,
             cpf_cnpj: cpf,
-            email: order.contato.email || null,
-            phone: order.contato.fone || null,
+            email: email,
+            phone: phone,
             external_id: blingContactId,
             source: "bling",
           })
@@ -276,7 +299,7 @@ async function syncTenant(
             await supabase.from("job_queue").insert({
               tenant_id: tenantId,
               job_type: "enrich_contact",
-              payload: { contact_id: newContact.id, cpf: cpf, nome: order.contato.nome } as any,
+              payload: { contact_id: newContact.id, cpf: cpf, nome: contactName } as any,
               queue: "default",
               status: "pending",
             });
