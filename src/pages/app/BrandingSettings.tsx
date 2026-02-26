@@ -107,9 +107,14 @@ const BrandingSettings = () => {
     }
 
     const { data: urlData } = supabase.storage.from("logos").getPublicUrl(path);
-    setForm({ ...form, logo_url: urlData.publicUrl });
+    const urlWithCacheBust = `${urlData.publicUrl}?t=${Date.now()}`;
+    const updatedForm = { ...form, logo_url: urlWithCacheBust };
+    setForm(updatedForm);
     setUploading(false);
-    toast.success("Logo enviada com sucesso!");
+
+    const ok = await saveBranding(updatedForm);
+    if (ok) toast.success("Logo enviada e salva com sucesso!");
+    else toast.error("Logo enviada, mas erro ao salvar no banco.");
 
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -126,8 +131,12 @@ const BrandingSettings = () => {
       return;
     }
 
-    setForm({ ...form, logo_url: "" });
-    toast.success("Logo removida.");
+    const updatedForm = { ...form, logo_url: "" };
+    setForm(updatedForm);
+
+    const ok = await saveBranding(updatedForm);
+    if (ok) toast.success("Logo removida com sucesso!");
+    else toast.error("Erro ao salvar remoção da logo.");
   };
 
   if (loading) {
