@@ -1,28 +1,39 @@
 
-## Diagnóstico
-- Não parece ser problema de plano.
-- O upload está funcionando e a gravação no backend também (PATCH 204 com `settings.logo_url` preenchido).
-- A causa provável é sincronização de estado no front-end: `useBranding` mantém estado local por componente, então `BrandingSettings` atualiza sua própria instância, mas `AppLayout`/`Navbar`/`Footer` podem continuar com o valor antigo até refetch ou reload.
 
-## Plano de implementação
+## Plano: Rebrand completo "Sua Base" → "Taqt" + Logo na landing page
 
-1. Refatorar `useBranding` para fonte de verdade compartilhada (React Query), usando chave por tenant (ex.: `["branding", tenantId]`).
-2. Trocar o `saveBranding` para mutation que:
-   - atualiza cache imediatamente (`setQueryData`) e
-   - invalida/refaz fetch da query de branding.
-3. Ajustar `BrandingSettings` para manter upload/remoção chamando `saveBranding(updatedForm)` e depender da atualização global do cache (não só estado local).
-4. Garantir que `AppLayout`, `Footer` e `Navbar` continuem lendo via `useBranding` e passem a refletir atualização instantânea sem reload.
-5. Adicionar proteção visual de carregamento para evitar fallback “Sua Base” aparecer enquanto branding ainda está sendo carregado.
+### Resumo
+Copiar a logo enviada para o projeto, substituir todas as referências "Sua Base" pelo nome "Taqt", exibir a logo na landing page/auth/navbar/footer, e corrigir o bug de RLS que impede salvar branding.
 
-## Detalhes técnicos
-- Arquivos envolvidos:
-  - `src/hooks/useBranding.ts` (refactor para query/mutation compartilhadas)
-  - `src/pages/app/BrandingSettings.tsx` (integração com fluxo novo)
-  - `src/components/AppLayout.tsx`, `src/components/Footer.tsx`, `src/components/Navbar.tsx` (consumo do estado já sincronizado)
-- Sem mudança de banco de dados.
-- Sem bloqueio por plano para esse fluxo na implementação atual (`isStarterOrFree = false`).
+### Implementação
 
-## Validação
-1. Teste ponta a ponta: em `/app/settings` > Branding, fazer upload e confirmar que logo aparece imediatamente no header/footer/navbar sem atualizar a página.
-2. Remover logo e confirmar retorno imediato do texto.
-3. Recarregar página e confirmar persistência correta da logo.
+**1. Migration SQL** — Adicionar política RLS UPDATE na tabela `tenants`
+```sql
+CREATE POLICY "Owners and admins can update tenant"
+  ON public.tenants FOR UPDATE
+  USING (has_tenant_role_or_above(auth.uid(), id, 'admin'))
+  WITH CHECK (has_tenant_role_or_above(auth.uid(), id, 'admin'));
+```
+
+**2. Copiar logo** para `src/assets/logo-taqt.png`
+
+**3. Arquivos a alterar:**
+
+| Arquivo | Mudança |
+|---------|---------|
+| `index.html` | Trocar títulos/meta de "Sua Base" → "Taqt" |
+| `src/hooks/useBranding.ts` | Default `platform_name: "Taqt"`, default `logo_url` vazio; retornar defaults quando `tenantId` é null |
+| `src/components/Navbar.tsx` | Importar logo estática, usar como fallback quando não há branding |
+| `src/components/Footer.tsx` | Mesmo: logo estática como fallback, trocar "Sua Base" |
+| `src/components/AppLayout.tsx` | Trocar fallback "Sua Base" → "Taqt" |
+| `src/pages/Auth.tsx` | Remover ícone Database, usar logo importada, trocar textos "Sua Base"/"Construa sua base" |
+| `src/components/HeroSection.tsx` | Trocar "Construa sua base" e "Seus dados, sua base" por textos genéricos Taqt |
+| `src/components/SolutionSection.tsx` | Trocar "o Sua Base" → "o Taqt" |
+| `src/components/CTASection.tsx` | Trocar "sua base" → texto atualizado |
+| `src/pages/app/BrandingSettings.tsx` | Trocar "Sua Base" → "Taqt" na label do switch |
+
+**4. Resultado esperado:**
+- Logo Taqt aparece na landing page, auth, navbar e footer sem precisar de login
+- Na área logada, branding do tenant prevalece (se configurado)
+- Salvar branding funciona de verdade (RLS corrigido)
+
