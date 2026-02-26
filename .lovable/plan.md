@@ -1,45 +1,32 @@
 
 
-## Plano: Upload de logo via Storage com dica de tamanho ideal
+## Plano: Corrigir upload de logo — salvar automaticamente + cache busting
 
-### O que será feito
+### Problema identificado
 
-1. **Criar bucket `logos`** no Storage com leitura pública e upload restrito a usuários autenticados
-2. **Substituir campo de URL** no BrandingSettings por componente de upload de imagem com preview e dica de tamanho ideal
-3. **Atualizar Footer** para consumir `useBranding()` e exibir a logo dinamicamente
+1. **Upload não persiste**: `handleLogoUpload` atualiza apenas o estado local do formulário (`setForm`), mas **não chama `saveBranding()`**. O mesmo ocorre com `handleLogoRemove`. A logo só é salva no banco se o usuário clicar "Salvar alterações" depois.
+
+2. **Cache do navegador**: A URL pública é sempre a mesma (`{tenantId}/logo.png`), então ao re-enviar uma nova imagem, o navegador pode exibir a versão antiga.
 
 ### Alterações
 
-#### 1. Migração SQL — Bucket + Políticas de Storage
-
-Criar bucket `logos` com acesso público de leitura e políticas de upload/update/delete para usuários autenticados.
-
-#### 2. `src/pages/app/BrandingSettings.tsx` — Upload com preview + dica de tamanho
-
-Substituir o campo `Input` de URL (linhas 131-140) por:
-
-- Preview da logo atual (se `form.logo_url` existir)
-- Input `type="file"` aceitando PNG, SVG, JPG, WebP (max 2MB)
-- Upload para `logos/{tenantId}/logo.{ext}` com `upsert: true`
-- URL pública salva em `form.logo_url`
-- Botão "Remover" que limpa a URL e deleta o arquivo
-- **Texto informativo:** _"Tamanho ideal: 200×60px. Formatos aceitos: PNG, SVG, JPG ou WebP. Máximo 2MB. Fundo transparente recomendado."_
-
-#### 3. `src/components/Footer.tsx` — Exibir logo do branding
-
-Consumir `useBranding()` e renderizar `<img>` quando `branding.logo_url` existir. Exibir `branding.platform_name` e `branding.footer_text` quando disponíveis, em vez dos valores fixos "Sua Base".
-
-### Resumo
-
 | Arquivo | Mudança |
 |---|---|
-| Migração SQL | Bucket `logos` + políticas de Storage |
-| `src/pages/app/BrandingSettings.tsx` | Campo de upload com preview, remoção e dica de tamanho ideal (200×60px) |
-| `src/components/Footer.tsx` | Consumir `useBranding()` para logo e textos dinâmicos |
+| `src/pages/app/BrandingSettings.tsx` | Chamar `saveBranding()` automaticamente após upload e remoção; adicionar parâmetro de cache busting (`?t=timestamp`) na URL |
+
+### Detalhes técnicos
+
+**`handleLogoUpload`** (linhas 86-115):
+- Após obter a URL pública, adicionar `?t=${Date.now()}` para invalidar cache
+- Chamar `saveBranding({ ...form, logo_url: urlComTimestamp })` imediatamente após o upload
+- Remover a necessidade de clicar "Salvar" separadamente para a logo
+
+**`handleLogoRemove`** (linhas 117-131):
+- Após limpar `logo_url`, chamar `saveBranding({ ...form, logo_url: "" })` automaticamente
 
 ### Resultado
 
-- Upload direto de imagem na página de Branding com orientação clara sobre tamanho ideal
-- Logo aparece automaticamente no header (já funciona) e no footer (será adicionado)
-- Cada tenant tem sua logo isolada no bucket
+- Ao enviar uma logo, ela será salva automaticamente no banco e aparecerá imediatamente no header e footer
+- Ao remover, a remoção também será persistida automaticamente
+- Re-uploads sempre mostrarão a imagem nova graças ao parâmetro de cache busting
 
