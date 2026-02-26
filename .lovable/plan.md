@@ -1,39 +1,37 @@
 
 
-## Plano: Rebrand completo "Sua Base" → "Taqt" + Logo na landing page
+## Plano: Exibir "Número Loja Virtual" como ID da Venda
 
-### Resumo
-Copiar a logo enviada para o projeto, substituir todas as referências "Sua Base" pelo nome "Taqt", exibir a logo na landing page/auth/navbar/footer, e corrigir o bug de RLS que impede salvar branding.
+### Problema
+Atualmente o campo "ID Pedido" na página de Pedidos exibe o `external_id` (que é o ID interno do Bling, ex: `19283746`). O usuário precisa ver o **"Número Loja Virtual"** que vem nos detalhes da venda no Bling (campo `numeroLojaVirtual`).
 
-### Implementação
+### Alterações
 
-**1. Migration SQL** — Adicionar política RLS UPDATE na tabela `tenants`
-```sql
-CREATE POLICY "Owners and admins can update tenant"
-  ON public.tenants FOR UPDATE
-  USING (has_tenant_role_or_above(auth.uid(), id, 'admin'))
-  WITH CHECK (has_tenant_role_or_above(auth.uid(), id, 'admin'));
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `supabase/functions/bling-sync/index.ts` | Adicionar `numeroLojaVirtual` na interface `BlingOrderDetail`; extrair o campo do detalhe da venda e salvar em `metadata.numero_loja_virtual` (tanto no insert quanto no update) |
+| 2 | `src/pages/app/Orders.tsx` | No campo "ID Pedido", priorizar `metadata.numero_loja_virtual` sobre `external_id`; atualizar a interface `Order` para incluir `metadata` |
+
+### Detalhe técnico
+
+**bling-sync** — na função `syncTenant`, após `fetchOrderDetail`:
+```typescript
+const numeroLojaVirtual = detail?.numeroLojaVirtual || null;
+```
+E no insert/update do pedido, incluir no `metadata`:
+```typescript
+metadata: { 
+  bling_numero: order.numero, 
+  numero_loja_virtual: numeroLojaVirtual 
+}
 ```
 
-**2. Copiar logo** para `src/assets/logo-taqt.png`
+**Orders.tsx** — na coluna "ID Pedido":
+```typescript
+// Priorizar numero_loja_virtual > external_id > id truncado
+{order.numero_loja_virtual || order.external_id || order.id.slice(0, 8)}
+```
 
-**3. Arquivos a alterar:**
-
-| Arquivo | Mudança |
-|---------|---------|
-| `index.html` | Trocar títulos/meta de "Sua Base" → "Taqt" |
-| `src/hooks/useBranding.ts` | Default `platform_name: "Taqt"`, default `logo_url` vazio; retornar defaults quando `tenantId` é null |
-| `src/components/Navbar.tsx` | Importar logo estática, usar como fallback quando não há branding |
-| `src/components/Footer.tsx` | Mesmo: logo estática como fallback, trocar "Sua Base" |
-| `src/components/AppLayout.tsx` | Trocar fallback "Sua Base" → "Taqt" |
-| `src/pages/Auth.tsx` | Remover ícone Database, usar logo importada, trocar textos "Sua Base"/"Construa sua base" |
-| `src/components/HeroSection.tsx` | Trocar "Construa sua base" e "Seus dados, sua base" por textos genéricos Taqt |
-| `src/components/SolutionSection.tsx` | Trocar "o Sua Base" → "o Taqt" |
-| `src/components/CTASection.tsx` | Trocar "sua base" → texto atualizado |
-| `src/pages/app/BrandingSettings.tsx` | Trocar "Sua Base" → "Taqt" na label do switch |
-
-**4. Resultado esperado:**
-- Logo Taqt aparece na landing page, auth, navbar e footer sem precisar de login
-- Na área logada, branding do tenant prevalece (se configurado)
-- Salvar branding funciona de verdade (RLS corrigido)
+### Nota
+Pedidos já sincronizados não terão o campo `numero_loja_virtual` até a próxima sincronização. Será necessário clicar "Sincronizar Bling" para atualizar os pedidos existentes com o novo campo.
 
