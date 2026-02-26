@@ -155,24 +155,6 @@ const BrandingSettings = () => {
       </p>
 
       <div className="space-y-8">
-        {/* Platform Name */}
-        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Type className="h-5 w-5 text-primary" />
-            <h2 className="font-display font-semibold text-lg">Nome da Plataforma</h2>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="platform_name">Nome exibido na sidebar e rodapé</Label>
-            <Input
-              id="platform_name"
-              value={form.platform_name}
-              onChange={(e) => setForm({ ...form, platform_name: e.target.value })}
-              placeholder="Sua Base"
-              disabled={!isOwnerOrAdmin}
-            />
-          </div>
-        </section>
-
         {/* Logo */}
         <section className={cn("card-gradient rounded-xl border border-border/50 p-6 space-y-4 relative", isStarterOrFree && "opacity-60 pointer-events-none")}>
           {isStarterOrFree && (
