@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "./useTenant";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface BrandingSettings {
   platform_name: string;
@@ -23,47 +24,47 @@ const defaultBranding: BrandingSettings = {
 };
 
 function hslStringToValues(hsl: string): string | null {
-  // Accept "152 76% 46%" or "hsl(152, 76%, 46%)" formats
   const match = hsl.match(/(\d+)\s+(\d+)%\s+(\d+)%/) || hsl.match(/(\d+),?\s*(\d+)%,?\s*(\d+)%/);
   if (match) return `${match[1]} ${match[2]}% ${match[3]}%`;
   return null;
 }
 
+function parseBrandingFromData(data: any): BrandingSettings {
+  const settings = (data.settings as Record<string, any>) || {};
+  return {
+    platform_name: settings.platform_name || data.name || defaultBranding.platform_name,
+    logo_url: settings.logo_url || "",
+    primary_color: settings.primary_color || defaultBranding.primary_color,
+    secondary_color: settings.secondary_color || defaultBranding.secondary_color,
+    footer_text: settings.footer_text || "",
+    hide_platform_branding: settings.hide_platform_branding || false,
+    custom_domain: settings.custom_domain || "",
+  };
+}
+
+async function fetchBrandingData(tenantId: string): Promise<BrandingSettings> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("settings, name")
+    .eq("id", tenantId)
+    .single();
+
+  if (data) return parseBrandingFromData(data);
+  return defaultBranding;
+}
+
 export const useBranding = () => {
   const { tenantId } = useTenant();
-  const [branding, setBranding] = useState<BrandingSettings>(defaultBranding);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  const fetchBranding = useCallback(async () => {
-    if (!tenantId) {
-      setLoading(false);
-      return;
-    }
+  const queryKey = ["branding", tenantId];
 
-    const { data } = await supabase
-      .from("tenants")
-      .select("settings, name")
-      .eq("id", tenantId)
-      .single();
-
-    if (data) {
-      const settings = (data.settings as Record<string, any>) || {};
-      setBranding({
-        platform_name: settings.platform_name || data.name || defaultBranding.platform_name,
-        logo_url: settings.logo_url || "",
-        primary_color: settings.primary_color || defaultBranding.primary_color,
-        secondary_color: settings.secondary_color || defaultBranding.secondary_color,
-        footer_text: settings.footer_text || "",
-        hide_platform_branding: settings.hide_platform_branding || false,
-        custom_domain: settings.custom_domain || "",
-      });
-    }
-    setLoading(false);
-  }, [tenantId]);
-
-  useEffect(() => {
-    fetchBranding();
-  }, [fetchBranding]);
+  const { data: branding = defaultBranding, isLoading: loading } = useQuery({
+    queryKey,
+    queryFn: () => fetchBrandingData(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 1000 * 60 * 5,
+  });
 
   // Apply CSS variables when branding changes
   useEffect(() => {
@@ -86,7 +87,6 @@ export const useBranding = () => {
     }
 
     return () => {
-      // Reset to defaults on unmount
       root.style.removeProperty("--primary");
       root.style.removeProperty("--accent");
       root.style.removeProperty("--ring");
@@ -99,30 +99,43 @@ export const useBranding = () => {
     };
   }, [branding.primary_color, branding.secondary_color]);
 
-  const saveBranding = async (newBranding: BrandingSettings) => {
-    if (!tenantId) return false;
+  const mutation = useMutation({
+    mutationFn: async (newBranding: BrandingSettings) => {
+      if (!tenantId) throw new Error("No tenant");
+      const { error } = await supabase
+        .from("tenants")
+        .update({
+          settings: {
+            platform_name: newBranding.platform_name,
+            logo_url: newBranding.logo_url,
+            primary_color: newBranding.primary_color,
+            secondary_color: newBranding.secondary_color,
+            footer_text: newBranding.footer_text,
+            hide_platform_branding: newBranding.hide_platform_branding,
+            custom_domain: newBranding.custom_domain,
+          },
+        })
+        .eq("id", tenantId);
+      if (error) throw error;
+      return newBranding;
+    },
+    onSuccess: (newBranding) => {
+      queryClient.setQueryData(queryKey, newBranding);
+    },
+  });
 
-    const { error } = await supabase
-      .from("tenants")
-      .update({
-        settings: {
-          platform_name: newBranding.platform_name,
-          logo_url: newBranding.logo_url,
-          primary_color: newBranding.primary_color,
-          secondary_color: newBranding.secondary_color,
-          footer_text: newBranding.footer_text,
-          hide_platform_branding: newBranding.hide_platform_branding,
-          custom_domain: newBranding.custom_domain,
-        },
-      })
-      .eq("id", tenantId);
-
-    if (!error) {
-      setBranding(newBranding);
+  const saveBranding = async (newBranding: BrandingSettings): Promise<boolean> => {
+    try {
+      await mutation.mutateAsync(newBranding);
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
-  return { branding, loading, saveBranding, refetch: fetchBranding };
+  const refetch = () => {
+    queryClient.invalidateQueries({ queryKey });
+  };
+
+  return { branding, loading, saveBranding, refetch };
 };
