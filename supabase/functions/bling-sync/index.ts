@@ -215,6 +215,7 @@ async function syncTenant(
       let phone: string | null = order.contato.fone || null;
 
       // SEMPRE buscar dados completos do cadastro de Clientes/Fornecedores do Bling
+      let blingEndereco: Record<string, string> | null = null;
       if (order.contato.id) {
         const blingContact = await fetchBlingContact(order.contato.id, accessToken);
         await delay(150); // rate limiting
@@ -225,7 +226,20 @@ async function syncTenant(
           if (blingContact.nome) contactName = blingContact.nome;
           if (blingContact.email) email = blingContact.email;
           if (blingContact.celular || blingContact.fone) phone = blingContact.celular || blingContact.fone;
-          console.log(`bling-sync: contact ${blingContactId} enriched from registry — cpf: ${cpf ? "yes" : "no"}, email: ${email ? "yes" : "no"}, phone: ${phone ? "yes" : "no"}`);
+          // Extrair endereço do cadastro
+          const end = (blingContact as any).endereco;
+          if (end) {
+            blingEndereco = {
+              endereco: end.endereco || end.geral || "",
+              numero: end.numero || "",
+              complemento: end.complemento || "",
+              bairro: end.bairro || "",
+              cep: end.cep || "",
+              municipio: end.municipio || "",
+              uf: end.uf || "",
+            };
+          }
+          console.log(`bling-sync: contact ${blingContactId} enriched from registry — cpf: ${cpf ? "yes" : "no"}, email: ${email ? "yes" : "no"}, phone: ${phone ? "yes" : "no"}, endereco: ${blingEndereco ? "yes" : "no"}`);
         }
       }
 
@@ -269,6 +283,16 @@ async function syncTenant(
         if (email) updates.email = email;
         if (phone) updates.phone = phone;
         if (contactName) updates.name = contactName;
+        if (blingEndereco) {
+          // Merge endereco into existing metadata
+          const { data: existingContact } = await supabase
+            .from("contacts")
+            .select("metadata")
+            .eq("id", contactId)
+            .single();
+          const existingMeta = (existingContact?.metadata as Record<string, any>) || {};
+          updates.metadata = { ...existingMeta, endereco: blingEndereco };
+        }
         if (Object.keys(updates).length > 0) {
           await supabase.from("contacts").update(updates).eq("id", contactId);
         }
@@ -276,6 +300,9 @@ async function syncTenant(
 
       // Only create if no match found
       if (!contactId) {
+        const contactMetadata: Record<string, any> = {};
+        if (blingEndereco) contactMetadata.endereco = blingEndereco;
+
         const { data: newContact } = await supabase
           .from("contacts")
           .insert({
@@ -286,6 +313,7 @@ async function syncTenant(
             phone: phone,
             external_id: blingContactId,
             source: "bling",
+            metadata: Object.keys(contactMetadata).length > 0 ? contactMetadata : {},
           })
           .select("id")
           .single();
