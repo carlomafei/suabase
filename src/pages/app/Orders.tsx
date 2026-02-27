@@ -327,9 +327,9 @@ const Orders = () => {
       </Card>
 
       {/* Main content: table + detail panel */}
-      <div className="flex gap-4">
+      <div>
         {/* Table */}
-        <div className={cn("transition-all duration-300", selectedOrder ? "w-[65%]" : "w-full")}>
+        <div>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -354,6 +354,7 @@ const Orders = () => {
                       <TableHead className="text-xs">Marketplace</TableHead>
                       <TableHead className="text-xs text-right">Valor</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
+                      <TableHead className="text-xs text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -367,10 +368,9 @@ const Orders = () => {
                         <TableRow
                           key={order.id}
                           className={cn(
-                            "border-border/50 cursor-pointer transition-colors",
+                            "border-border/50 transition-colors",
                             isSelected && "bg-accent"
                           )}
-                          onClick={() => handleSelectOrder(order)}
                         >
                           <TableCell className="text-xs whitespace-nowrap">
                             {format(new Date(orderDate), "dd/MM/yyyy", { locale: ptBR })}
@@ -406,6 +406,16 @@ const Orders = () => {
                               {status.label}
                             </Badge>
                           </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleSelectOrder(order)}
+                            >
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -416,19 +426,20 @@ const Orders = () => {
           )}
         </div>
 
-        {/* Detail Sidebar */}
+        {/* Detail Sidebar Overlay */}
         {selectedOrder && (
-          <div className="w-[35%] min-w-[320px]">
-            <Card className="border-border/50 sticky top-4">
+          <>
+            <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedOrder(null)} />
+            <div className="fixed inset-y-0 right-0 w-[400px] max-w-[90vw] z-50 bg-background border-l border-border shadow-lg flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-border/50">
+              <div className="flex items-center justify-between p-4 border-b border-border/50 shrink-0">
                 <h3 className="font-semibold text-sm">Detalhes do Pedido</h3>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedOrder(null)}>
                   <X className="h-4 w-4" />
                 </Button>
               </div>
 
-              <ScrollArea className="h-[calc(100vh-280px)]">
+              <ScrollArea className="flex-1">
                 <div className="p-4 space-y-5">
                   {/* Order Info */}
                   <div>
@@ -581,8 +592,8 @@ const Orders = () => {
                   </div>
                 </div>
               </ScrollArea>
-            </Card>
-          </div>
+            </div>
+          </>
         )}
       </div>
     </div>
