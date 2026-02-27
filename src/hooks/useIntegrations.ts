@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "./useTenant";
 
-export type IntegrationProvider = "bling" | "tiny" | "data_broker" | "whatsapp_meta";
+export type IntegrationProvider = "bling" | "tiny" | "data_broker" | "deskdata" | "whatsapp_meta";
 
 export type IntegrationCategory = "erp" | "data_broker" | "whatsapp";
 
@@ -50,9 +50,9 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
   },
   {
     id: "data_broker",
-    name: "Data Broker",
+    name: "Data Broker (Genérico)",
     category: "data_broker",
-    description: "Enriqueça dados de contatos via provedores de dados.",
+    description: "Enriqueça dados de contatos via provedores genéricos (Neoway, Assertiva, BigDataCorp).",
     available: true,
     credentialFields: [
       { key: "provider_type", label: "Provedor", type: "select", placeholder: "Selecione o provedor", options: [
@@ -62,6 +62,17 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
       ]},
       { key: "api_url", label: "URL da API", type: "text", placeholder: "https://api.exemplo.com" },
       { key: "api_key", label: "API Key", type: "password", placeholder: "Chave de acesso da API" },
+    ],
+  },
+  {
+    id: "deskdata",
+    name: "Deskdata",
+    category: "data_broker",
+    description: "Enriqueça contatos com dados de telefones, e-mails e endereços via Deskdata.",
+    available: true,
+    credentialFields: [
+      { key: "username", label: "Usuário", type: "text", placeholder: "Usuário da conta Deskdata" },
+      { key: "password", label: "Senha", type: "password", placeholder: "Senha da conta Deskdata" },
     ],
   },
   {

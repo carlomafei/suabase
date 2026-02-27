@@ -107,6 +107,68 @@ async function queryBigDataCorp(
   };
 }
 
+// Deskdata adapter
+async function queryDeskdata(
+  username: string,
+  password: string,
+  cpf?: string,
+  nome?: string
+): Promise<BrokerResult> {
+  // Step 1: Authenticate
+  const authRes = await fetch("https://api.deskdata.com.br/auth", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!authRes.ok) throw new Error(`Deskdata auth ${authRes.status}`);
+  const authData = await authRes.json();
+  const accessToken = authData.access_token;
+  if (!accessToken) throw new Error("Deskdata: access_token não retornado");
+
+  // Step 2: Query
+  const keyType = cpf ? "cpf" : nome ? "name" : null;
+  const keyValue = cpf || nome;
+  if (!keyType || !keyValue) throw new Error("CPF ou nome obrigatório para Deskdata");
+
+  const queryRes = await fetch("https://api.deskdata.com.br/queries", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      type: "persons",
+      key_type: keyType,
+      key_value: keyValue.replace(/[^0-9a-zA-ZÀ-ú ]/g, ""),
+      datasets: ["basic", "phones", "emails"],
+    }),
+  });
+
+  if (!queryRes.ok) throw new Error(`Deskdata query ${queryRes.status}`);
+  const queryData = await queryRes.json();
+
+  if (queryData.status?.code !== 4000) {
+    throw new Error(`Deskdata: ${queryData.status?.message || "Erro desconhecido"}`);
+  }
+
+  const data = queryData.data || {};
+  const phones = data.phones?.items || [];
+  const emails = data.emails?.items || [];
+
+  // Extract: first mobile → whatsapp, first landline → phone, first email → email
+  const mobile = phones.find((p: any) => p.type === "MOBILE" || p.type === "mobile") || phones[0];
+  const landline = phones.find((p: any) => p.type === "LANDLINE" || p.type === "landline");
+  const firstEmail = emails[0];
+
+  return {
+    whatsapp: mobile?.number || null,
+    email: firstEmail?.email || null,
+    phone: landline?.number || mobile?.number || null,
+    metadata: { provider: "deskdata", raw: data },
+  };
+}
+
 // Generic dispatcher
 async function findContacts(
   providerType: string,
@@ -171,8 +233,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get data broker credentials
-    const { data: integration } = await supabase
+    // Check for Deskdata provider first
+    const { data: deskdataIntegration } = await supabase
+      .from("tenant_integrations")
+      .select("credentials, settings")
+      .eq("tenant_id", tenant_id)
+      .eq("provider", "deskdata")
+      .eq("is_active", true)
+      .single();
+
+    // Fallback to generic data_broker
+    const { data: genericIntegration } = await supabase
       .from("tenant_integrations")
       .select("credentials, settings")
       .eq("tenant_id", tenant_id)
@@ -180,24 +251,33 @@ Deno.serve(async (req) => {
       .eq("is_active", true)
       .single();
 
-    if (!integration?.credentials) {
+    let result: BrokerResult;
+
+    if (deskdataIntegration?.credentials) {
+      const creds = deskdataIntegration.credentials as Record<string, string>;
+      result = await queryDeskdata(
+        creds.username,
+        creds.password,
+        cpf || undefined,
+        nome || undefined
+      );
+    } else if (genericIntegration?.credentials) {
+      const creds = genericIntegration.credentials as Record<string, string>;
+      const settings = (genericIntegration.settings || {}) as Record<string, string>;
+      const providerType = settings.provider_type || "generic";
+      result = await findContacts(
+        providerType,
+        creds.api_url,
+        creds.api_key,
+        cpf || undefined,
+        nome || undefined
+      );
+    } else {
       return new Response(
         JSON.stringify({ error: "Data Broker não configurado" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const creds = integration.credentials as Record<string, string>;
-    const settings = (integration.settings || {}) as Record<string, string>;
-    const providerType = settings.provider_type || "generic";
-
-    const result = await findContacts(
-      providerType,
-      creds.api_url,
-      creds.api_key,
-      cpf || undefined,
-      nome || undefined
-    );
 
     // Update contact with enriched data
     const updateData: Record<string, any> = {
