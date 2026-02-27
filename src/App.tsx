@@ -23,6 +23,7 @@ import AdminTenants from "./pages/admin/AdminTenants";
 import AdminPlans from "./pages/admin/AdminPlans";
 import AdminSubscriptions from "./pages/admin/AdminSubscriptions";
 import AdminBilling from "./pages/admin/AdminBilling";
+import AdminUsers from "./pages/admin/AdminUsers";
 import AdminLogin from "./pages/admin/AdminLogin";
 
 const queryClient = new QueryClient();
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="plans" element={<AdminPlans />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="billing" element={<AdminBilling />} />
+            <Route path="users" element={<AdminUsers />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
