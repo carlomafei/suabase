@@ -5,11 +5,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
-  Users, DollarSign, Crown, Loader2, Search, Sparkles, Shield, ShieldOff,
+  Users, DollarSign, Crown, Loader2, Search, ShieldOff,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,7 +41,7 @@ const Contacts = () => {
   const [contacts, setContacts] = useState<ContactRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [enrichingId, setEnrichingId] = useState<string | null>(null);
+  
 
   const fetchContacts = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -119,47 +119,6 @@ const Contacts = () => {
 
   useEffect(() => { fetchContacts(); }, [fetchContacts]);
 
-  const handleEnrich = async (contact: ContactRow) => {
-    if (!tenantId) return;
-    setEnrichingId(contact.id);
-    try {
-      const { data, error } = await supabase.functions.invoke("data-broker", {
-        body: {
-          tenant_id: tenantId,
-          contact_id: contact.id,
-          cpf: contact.cpf_cnpj,
-          nome: contact.name,
-        },
-      });
-
-      if (error) {
-        const msg = error.message || "";
-        if (msg.includes("não configurado") || msg.includes("not configured")) {
-          toast.error("Configure um Data Broker em Configurações > Integrações antes de enriquecer.");
-        } else {
-          toast.error(`Erro ao enriquecer: ${msg}`);
-        }
-        return;
-      }
-
-      // Check for application-level errors in the response
-      if (data?.error) {
-        if (data.error.includes("não configurado") || data.error.includes("not configured")) {
-          toast.error("Configure um Data Broker em Configurações > Integrações antes de enriquecer.");
-        } else {
-          toast.error(`Erro ao enriquecer: ${data.error}`);
-        }
-        return;
-      }
-
-      toast.success(`Dados de ${contact.name} enriquecidos!`);
-      fetchContacts();
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao enriquecer contato");
-    } finally {
-      setEnrichingId(null);
-    }
-  };
 
   const filtered = contacts.filter((c) => {
     if (!search) return true;
@@ -247,7 +206,7 @@ const Contacts = () => {
                   <TableHead className="text-xs">Qualidade</TableHead>
                   <TableHead className="text-xs">Origem</TableHead>
                   <TableHead className="text-xs">Status CRM</TableHead>
-                  <TableHead className="text-xs text-right">Ações</TableHead>
+                  
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -300,22 +259,6 @@ const Contacts = () => {
                       ) : (
                         <span className="text-xs text-muted-foreground">—</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-7 gap-1"
-                        disabled={enrichingId === c.id}
-                        onClick={() => handleEnrich(c)}
-                      >
-                        {enrichingId === c.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3" />
-                        )}
-                        Enriquecer
-                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
