@@ -1,39 +1,65 @@
 
 
-## Diagnóstico
+## Integração Deskdata como Data Broker
 
-O problema é **RLS (Row Level Security)**. As páginas do painel admin (Tenants, Métricas) consultam as tabelas diretamente pelo cliente com `supabase.from("tenants").select(...)`. As políticas RLS só permitem ver dados do próprio tenant do usuário logado — mesmo sendo super admin.
+Analisei a documentação completa da API Deskdata. Aqui está o resumo da API e o plano de implementação.
 
-Não existe nenhuma edge function `admin-api` implementada ainda para contornar isso.
+### API Deskdata - Resumo Técnico
 
-## Solução
+| Recurso | Método | Endpoint |
+|---------|--------|----------|
+| Autenticação | POST | `https://api.deskdata.com.br/auth` (username/password → access_token) |
+| Consultas | POST | `https://api.deskdata.com.br/queries` |
+| Saldo de créditos | GET | `https://api.deskdata.com.br/credits` |
 
-Criar uma edge function `admin-api` que usa `service_role` para buscar dados globais, validando que o chamador é super admin.
+**Autenticação**: Username + Password gera um `access_token` (Bearer token) com validade configurável (1-87600 horas).
+
+**Consultas disponíveis** (datasets): `basic`, `phones`, `emails`, `addresses` -- todos no mesmo endpoint `/queries`, basta incluir no array `datasets`.
+
+**Chaves de busca**: `cpf`, `name`, `email`, `phone`.
+
+**Formato da requisição**:
+```text
+POST /queries
+Authorization: Bearer <access_token>
+{
+  "type": "persons",
+  "key_type": "cpf",
+  "key_value": "00000000000",
+  "datasets": ["basic", "phones", "emails", "addresses"]
+}
+```
+
+**Formato da resposta** (code 4000 = sucesso):
+```text
+{
+  "status": { "code": 4000, "message": "Success" },
+  "data": {
+    "basic": { age, birth_date, gender, name, ... },
+    "phones": { total, items: [{ number, type, ... }] },
+    "emails": { total, items: [{ email, type, ... }] },
+    "addresses": { total, items: [{ street, city, state, ... }] }
+  }
+}
+```
+
+---
+
+### Plano de implementação
 
 | # | Onde | Mudança |
 |---|------|---------|
-| 1 | **`supabase/functions/admin-api/index.ts`** | Nova edge function com actions: `list_tenants`, `list_users`, `global_metrics`. Valida super admin via RPC, usa service_role client para queries sem RLS |
-| 2 | **`src/pages/admin/AdminTenants.tsx`** | Trocar query direta por chamada à edge function `admin-api` com action `list_tenants` |
-| 3 | **`src/pages/admin/AdminMetrics.tsx`** | Chamar `admin-api` com action `global_metrics` para obter contagens reais (total tenants, usuários, MRR) |
-| 4 | **`src/pages/admin/AdminUsers.tsx`** (novo) | Nova página listando todos os usuários (nome, e-mail, tenant, role) via action `list_users` |
-| 5 | **`src/App.tsx`** | Adicionar rota `/admin/users` |
-| 6 | **`src/components/AdminLayout.tsx`** | Adicionar "Usuários" no menu lateral |
-| 7 | **`supabase/config.toml`** | Desabilitar JWT verify para `admin-api` (validação feita no código) |
+| 1 | **`src/hooks/useIntegrations.ts`** | Adicionar `"deskdata"` ao tipo `IntegrationProvider` e novo item em `PROVIDER_CONFIGS` com campos: `username`, `password` (credenciais Deskdata) |
+| 2 | **`supabase/functions/data-broker/index.ts`** | Adicionar adaptador `queryDeskdata` que: (a) autentica com username/password para obter access_token, (b) consulta `/queries` com datasets `["basic", "phones", "emails"]`, (c) normaliza resposta para `BrokerResult` |
+| 3 | **`src/pages/app/IntegrationSettings.tsx`** | Incluir `"data_broker"` no array `categories` para que a seção Data Broker apareça na UI dos tenants |
 
-### Edge function `admin-api`
+### Detalhes técnicos
 
-```text
-POST /admin-api
-Body: { "action": "list_tenants" | "list_users" | "global_metrics" }
+**Adaptador `queryDeskdata`** na edge function:
+1. `POST https://api.deskdata.com.br/auth` com `{ username, password }` → recebe `access_token`
+2. `POST https://api.deskdata.com.br/queries` com `Authorization: Bearer <token>`, body: `{ type: "persons", key_type: "cpf", key_value: cpf, datasets: ["basic", "phones", "emails"] }`
+3. Extrai do retorno: primeiro telefone celular → `whatsapp`, primeiro e-mail → `email`, primeiro telefone fixo → `phone`
+4. Armazena resposta completa em `metadata` para enriquecimento futuro
 
-1. Extrai user do token Authorization
-2. Verifica is_super_admin via RPC
-3. Se não for SA → 403
-4. Executa query com service_role client
-5. Retorna dados
-```
-
-**`list_users`** — junta `profiles`, `tenant_users` e `tenants` para retornar: user_id, full_name, email (de auth.users via admin API), tenant_name, role, created_at. Usa paginação para ultrapassar o limite de 1000 rows.
-
-**`global_metrics`** — retorna counts agregados: total_tenants, total_users, total_contacts, MRR (soma de planos ativos).
+**Credenciais por tenant**: As credenciais (username/password da Deskdata) ficam em `tenant_integrations.credentials` -- cada tenant configura as suas. O token é obtido em tempo real a cada consulta (sem cache, para simplificar).
 
