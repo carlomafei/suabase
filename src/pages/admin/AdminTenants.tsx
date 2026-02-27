@@ -24,16 +24,21 @@ interface DataBrokerConfig {
   provider_type: string;
   api_url: string;
   api_key: string;
+  username: string;
+  password: string;
 }
+
+const isDeskdata = (providerType: string) => providerType === "deskdata";
 
 const AdminTenants = () => {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
-  const [dbConfig, setDbConfig] = useState<DataBrokerConfig>({ provider_type: "", api_url: "", api_key: "" });
+  const [dbConfig, setDbConfig] = useState<DataBrokerConfig>({ provider_type: "", api_url: "", api_key: "", username: "", password: "" });
   const [saving, setSaving] = useState(false);
   const [loadingConfig, setLoadingConfig] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
+  const [existingIntegrationId, setExistingIntegrationId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTenants = async () => {
@@ -50,64 +55,86 @@ const AdminTenants = () => {
 
   const openDataBrokerDialog = async (tenant: Tenant) => {
     setSelectedTenant(tenant);
-    setShowApiKey(false);
+    setShowSecret(false);
     setLoadingConfig(true);
-    setDbConfig({ provider_type: "", api_url: "", api_key: "" });
+    setExistingIntegrationId(null);
+    setDbConfig({ provider_type: "", api_url: "", api_key: "", username: "", password: "" });
 
-    // Load existing config
-    const { data } = await supabase
+    // Try to load existing deskdata integration first, then fall back to data_broker
+    const { data: integrations } = await supabase
       .from("tenant_integrations")
-      .select("credentials, settings")
+      .select("id, provider, credentials, settings")
       .eq("tenant_id", tenant.id)
-      .eq("provider", "data_broker")
-      .maybeSingle();
+      .in("provider", ["deskdata", "data_broker"]);
 
-    if (data) {
-      const creds = (data.credentials || {}) as Record<string, string>;
-      const settings = (data.settings || {}) as Record<string, string>;
-      setDbConfig({
-        provider_type: settings.provider_type || "",
-        api_url: creds.api_url || "",
-        api_key: creds.api_key || "",
-      });
+    const integration = integrations?.find(i => i.provider === "deskdata") || integrations?.find(i => i.provider === "data_broker");
+
+    if (integration) {
+      const creds = (integration.credentials || {}) as Record<string, string>;
+      const settings = (integration.settings || {}) as Record<string, string>;
+      setExistingIntegrationId(integration.id);
+
+      if (integration.provider === "deskdata") {
+        setDbConfig({
+          provider_type: "deskdata",
+          api_url: "",
+          api_key: "",
+          username: creds.username || "",
+          password: creds.password || "",
+        });
+      } else {
+        setDbConfig({
+          provider_type: settings.provider_type || "",
+          api_url: creds.api_url || "",
+          api_key: creds.api_key || "",
+          username: "",
+          password: "",
+        });
+      }
     }
     setLoadingConfig(false);
   };
 
   const handleSave = async () => {
     if (!selectedTenant) return;
-    if (!dbConfig.provider_type || !dbConfig.api_url || !dbConfig.api_key) {
-      toast.error("Preencha todos os campos");
-      return;
+
+    const isDesk = isDeskdata(dbConfig.provider_type);
+
+    if (isDesk) {
+      if (!dbConfig.username || !dbConfig.password) {
+        toast.error("Preencha todos os campos");
+        return;
+      }
+    } else {
+      if (!dbConfig.provider_type || !dbConfig.api_url || !dbConfig.api_key) {
+        toast.error("Preencha todos os campos");
+        return;
+      }
     }
 
     setSaving(true);
     try {
-      // Check if exists
-      const { data: existing } = await supabase
-        .from("tenant_integrations")
-        .select("id")
-        .eq("tenant_id", selectedTenant.id)
-        .eq("provider", "data_broker")
-        .maybeSingle();
+      const provider = isDesk ? "deskdata" : "data_broker";
+      const credentials = isDesk
+        ? { username: dbConfig.username, password: dbConfig.password }
+        : { api_url: dbConfig.api_url, api_key: dbConfig.api_key };
+      const settings = isDesk
+        ? { provider_type: "deskdata" }
+        : { provider_type: dbConfig.provider_type };
 
-      if (existing) {
+      if (existingIntegrationId) {
         await supabase
           .from("tenant_integrations")
-          .update({
-            credentials: { api_url: dbConfig.api_url, api_key: dbConfig.api_key },
-            settings: { provider_type: dbConfig.provider_type },
-            is_active: true,
-          })
-          .eq("id", existing.id);
+          .update({ provider, credentials, settings, is_active: true })
+          .eq("id", existingIntegrationId);
       } else {
         await supabase
           .from("tenant_integrations")
           .insert({
             tenant_id: selectedTenant.id,
-            provider: "data_broker",
-            credentials: { api_url: dbConfig.api_url, api_key: dbConfig.api_key },
-            settings: { provider_type: dbConfig.provider_type },
+            provider,
+            credentials,
+            settings,
             is_active: true,
           });
       }
@@ -204,11 +231,23 @@ const AdminTenants = () => {
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Provedor</Label>
-                <Select value={dbConfig.provider_type} onValueChange={(v) => setDbConfig((p) => ({ ...p, provider_type: v }))}>
+                <Select
+                  value={dbConfig.provider_type}
+                  onValueChange={(v) => setDbConfig((p) => ({
+                    ...p,
+                    provider_type: v,
+                    // Reset fields when switching provider type
+                    api_url: isDeskdata(v) ? "" : p.api_url,
+                    api_key: isDeskdata(v) ? "" : p.api_key,
+                    username: isDeskdata(v) ? p.username : "",
+                    password: isDeskdata(v) ? p.password : "",
+                  }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o provedor" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="deskdata">Deskdata</SelectItem>
                     <SelectItem value="neoway">Neoway</SelectItem>
                     <SelectItem value="assertiva">Assertiva</SelectItem>
                     <SelectItem value="bigdatacorp">BigDataCorp</SelectItem>
@@ -216,34 +255,67 @@ const AdminTenants = () => {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-xs">API URL</Label>
-                <Input
-                  placeholder="https://api.provedor.com/v1"
-                  value={dbConfig.api_url}
-                  onChange={(e) => setDbConfig((p) => ({ ...p, api_url: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">API Key</Label>
-                <div className="relative">
-                  <Input
-                    type={showApiKey ? "text" : "password"}
-                    placeholder="Chave de acesso da API"
-                    value={dbConfig.api_key}
-                    onChange={(e) => setDbConfig((p) => ({ ...p, api_key: e.target.value }))}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
+              {isDeskdata(dbConfig.provider_type) ? (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Username</Label>
+                    <Input
+                      placeholder="Usuário da API Deskdata"
+                      value={dbConfig.username}
+                      onChange={(e) => setDbConfig((p) => ({ ...p, username: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Password</Label>
+                    <div className="relative">
+                      <Input
+                        type={showSecret ? "text" : "password"}
+                        placeholder="Senha da API Deskdata"
+                        value={dbConfig.password}
+                        onChange={(e) => setDbConfig((p) => ({ ...p, password: e.target.value }))}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowSecret(!showSecret)}
+                      >
+                        {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">API URL</Label>
+                    <Input
+                      placeholder="https://api.provedor.com/v1"
+                      value={dbConfig.api_url}
+                      onChange={(e) => setDbConfig((p) => ({ ...p, api_url: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">API Key</Label>
+                    <div className="relative">
+                      <Input
+                        type={showSecret ? "text" : "password"}
+                        placeholder="Chave de acesso da API"
+                        value={dbConfig.api_key}
+                        onChange={(e) => setDbConfig((p) => ({ ...p, api_key: e.target.value }))}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        onClick={() => setShowSecret(!showSecret)}
+                      >
+                        {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
