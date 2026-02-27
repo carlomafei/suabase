@@ -37,8 +37,12 @@ const AdminTenants = () => {
 
   useEffect(() => {
     const fetchTenants = async () => {
-      const { data } = await supabase.from("tenants").select("id, name, slug, plan, is_active, created_at").order("name");
-      setTenants(data || []);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { setLoading(false); return; }
+      const res = await supabase.functions.invoke("admin-api", {
+        body: { action: "list_tenants" },
+      });
+      setTenants(res.data?.tenants || []);
       setLoading(false);
     };
     fetchTenants();

@@ -7,6 +7,7 @@ import {
   Receipt,
   BarChart3,
   DollarSign,
+  Users,
   ArrowLeft,
   LogOut,
 } from "lucide-react";
@@ -18,6 +19,7 @@ const adminNavItems = [
   { to: "/admin/plans", icon: CreditCard, label: "Planos" },
   { to: "/admin/subscriptions", icon: Receipt, label: "Assinaturas" },
   { to: "/admin/billing", icon: DollarSign, label: "Faturamento" },
+  { to: "/admin/users", icon: Users, label: "Usuários" },
 ];
 
 const AdminLayout = () => {
