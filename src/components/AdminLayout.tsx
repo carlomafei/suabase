@@ -26,7 +26,7 @@ const AdminLayout = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/admin/login");
   };
 
   return (

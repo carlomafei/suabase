@@ -67,11 +67,9 @@ export const usePermissions = () => {
     }
 
     const checkSuperAdmin = async () => {
-      const { data } = await supabase
-        .from("super_admins" as any)
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const { data } = await supabase.rpc("is_super_admin", {
+        _user_id: user.id,
+      });
 
       setIsSuperAdmin(!!data);
       setLoading(tenantLoading);
