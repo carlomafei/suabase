@@ -221,9 +221,10 @@ const Orders = () => {
   };
 
   const endereco = contactDetail?.metadata?.endereco;
+  const safeRua = endereco?.endereco && typeof endereco.endereco === 'string' ? endereco.endereco : "";
   const enderecoStr = endereco
     ? [
-        [endereco.endereco, endereco.numero].filter(Boolean).join(", "),
+        [safeRua, endereco.numero].filter(Boolean).join(", "),
         endereco.complemento,
         endereco.bairro,
         [endereco.municipio, endereco.uf].filter(Boolean).join(" - "),

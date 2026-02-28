@@ -229,8 +229,11 @@ async function syncTenant(
           // Extrair endereço do cadastro
           const end = (blingContact as any).endereco;
           if (end) {
+            const rua = typeof end.endereco === 'string'
+              ? end.endereco
+              : (typeof end.endereco === 'object' && end.endereco?.endereco ? String(end.endereco.endereco) : (end.geral?.endereco || ""));
             blingEndereco = {
-              endereco: end.endereco || end.geral || "",
+              endereco: rua,
               numero: end.numero || "",
               complemento: end.complemento || "",
               bairro: end.bairro || "",
