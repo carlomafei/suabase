@@ -11,6 +11,7 @@ export interface BrandingSettings {
   footer_text: string;
   hide_platform_branding: boolean;
   custom_domain: string;
+  theme_mode: "dark" | "light";
 }
 
 const defaultBranding: BrandingSettings = {
@@ -21,6 +22,7 @@ const defaultBranding: BrandingSettings = {
   footer_text: "",
   hide_platform_branding: false,
   custom_domain: "",
+  theme_mode: "dark",
 };
 
 function hslStringToValues(hsl: string): string | null {
@@ -39,6 +41,7 @@ function parseBrandingFromData(data: any): BrandingSettings {
     footer_text: settings.footer_text || "",
     hide_platform_branding: settings.hide_platform_branding || false,
     custom_domain: settings.custom_domain || "",
+    theme_mode: settings.theme_mode || "dark",
   };
 }
 
@@ -86,6 +89,13 @@ export const useBranding = () => {
       root.style.setProperty("--sidebar-accent", secondary);
     }
 
+    // Apply theme mode
+    if (branding.theme_mode === "light") {
+      root.classList.add("light");
+    } else {
+      root.classList.remove("light");
+    }
+
     return () => {
       root.style.removeProperty("--primary");
       root.style.removeProperty("--accent");
@@ -96,8 +106,9 @@ export const useBranding = () => {
       root.style.removeProperty("--gradient-glow");
       root.style.removeProperty("--secondary");
       root.style.removeProperty("--sidebar-accent");
+      root.classList.remove("light");
     };
-  }, [branding.primary_color, branding.secondary_color]);
+  }, [branding.primary_color, branding.secondary_color, branding.theme_mode]);
 
   const mutation = useMutation({
     mutationFn: async (newBranding: BrandingSettings) => {
@@ -113,6 +124,7 @@ export const useBranding = () => {
             footer_text: newBranding.footer_text,
             hide_platform_branding: newBranding.hide_platform_branding,
             custom_domain: newBranding.custom_domain,
+            theme_mode: newBranding.theme_mode,
           },
         })
         .eq("id", tenantId);
