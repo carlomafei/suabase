@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, FileText, Eye, Lock, Upload, Trash2 } from "lucide-react";
+import { Palette, Type, Image, Globe, FileText, Eye, Lock, Upload, Trash2, Sun, Moon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const COLOR_PRESETS = [
@@ -285,6 +285,49 @@ const BrandingSettings = () => {
               className="h-2 rounded-full mt-1"
               style={{ backgroundColor: `hsl(${form.secondary_color})` }}
             />
+          </div>
+        </section>
+
+        {/* Theme Mode */}
+        <section className="card-gradient rounded-xl border border-border/50 p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sun className="h-5 w-5 text-primary" />
+            <h2 className="font-display font-semibold text-lg">Tema</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Escolha entre o tema escuro ou claro para a interface
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => isOwnerOrAdmin && setForm({ ...form, theme_mode: "dark" })}
+              disabled={!isOwnerOrAdmin}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all",
+                form.theme_mode === "dark"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/50 hover:border-border"
+              )}
+            >
+              <div className="h-16 w-full rounded-lg bg-[hsl(220,20%,4%)] border border-[hsl(220,14%,14%)] flex items-center justify-center">
+                <Moon className="h-6 w-6 text-[hsl(0,0%,95%)]" />
+              </div>
+              <span className="text-sm font-medium">Dark</span>
+            </button>
+            <button
+              onClick={() => isOwnerOrAdmin && setForm({ ...form, theme_mode: "light" })}
+              disabled={!isOwnerOrAdmin}
+              className={cn(
+                "flex-1 flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all",
+                form.theme_mode === "light"
+                  ? "border-primary bg-primary/10"
+                  : "border-border/50 hover:border-border"
+              )}
+            >
+              <div className="h-16 w-full rounded-lg bg-white border border-[hsl(220,14%,90%)] flex items-center justify-center">
+                <Sun className="h-6 w-6 text-[hsl(220,20%,10%)]" />
+              </div>
+              <span className="text-sm font-medium">Light</span>
+            </button>
           </div>
         </section>
 
