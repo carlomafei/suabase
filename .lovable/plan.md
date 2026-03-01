@@ -1,24 +1,54 @@
 
 
-## Ocultar integrações de Data Broker para usuários comuns
+## Implementar tema Light no Branding
 
-### Problema
-A lista `PROVIDER_CONFIGS` é estática e a tela de integrações renderiza todas as categorias para qualquer usuário autenticado. As integrações Deskdata e Data Broker (Genérico) deveriam ser visíveis **apenas no painel Super Admin**.
+### Situação atual
+O sistema possui apenas um tema dark definido em `src/index.css` (`:root`). Não existe definição de tema claro nem seletor de tema na tela de Branding.
 
-### Correção
+### Plano
 
-**Arquivo: `src/pages/app/IntegrationSettings.tsx`**
+**1. Adicionar variáveis CSS do tema Light** (`src/index.css`)
+- Criar um bloco `.light` (ou `:root.light`) com todas as variáveis de cor invertidas para fundo claro:
+  - `--background: 0 0% 100%`, `--foreground: 220 20% 10%`
+  - `--card: 0 0% 98%`, `--muted: 220 14% 95%`, etc.
+  - Manter `--primary` e `--accent` dinâmicos (aplicados via JS do branding)
 
-Filtrar a categoria `data_broker` da lista de categorias exibidas. A tela do tenant mostrará apenas `erp` e `whatsapp`:
+**2. Adicionar campo `theme_mode` ao BrandingSettings** (`src/hooks/useBranding.ts`)
+- Novo campo na interface: `theme_mode: "dark" | "light"`
+- Default: `"dark"`
+- Persistido em `tenants.settings.theme_mode`
+- No `useEffect`, aplicar/remover a classe `light` no `document.documentElement`
 
+**3. Adicionar seletor de tema na tela de Branding** (`src/pages/app/BrandingSettings.tsx`)
+- Nova seção "Tema" com dois botões visuais (Dark / Light) ou um toggle
+- Atualiza `form.theme_mode` ao clicar
+
+**4. Aplicar a classe no layout** (`src/hooks/useBranding.ts`)
+- No `useEffect` existente, adicionar:
 ```typescript
-const categories: IntegrationCategory[] = ["erp", "whatsapp"];
+if (branding.theme_mode === "light") {
+  document.documentElement.classList.add("light");
+} else {
+  document.documentElement.classList.remove("light");
+}
 ```
 
-Isso remove completamente a seção "Data Broker" (incluindo Deskdata e Data Broker Genérico) da tela de configurações do tenant.
+### Variáveis Light propostas
 
-A configuração dessas integrações continuará sendo feita pelo Super Admin via painel administrativo, que já possui acesso direto ao banco via `admin-api`.
+```text
+Dark (atual)                    Light (novo)
+─────────────────────────────   ─────────────────────────────
+--background: 220 20% 4%       --background: 0 0% 100%
+--foreground: 0 0% 95%         --foreground: 220 20% 10%
+--card: 220 18% 7%             --card: 0 0% 98%
+--muted: 220 14% 14%           --muted: 220 14% 96%
+--muted-foreground: 220 10% 55%  --muted-foreground: 220 10% 40%
+--border: 220 14% 14%          --border: 220 14% 90%
+--input: 220 14% 18%           --input: 220 14% 92%
+--secondary: 220 16% 12%      --secondary: 220 16% 96%
+--sidebar-background: 220 18% 7%  --sidebar-background: 0 0% 98%
+```
 
-### Alternativa
-Se no futuro for necessário que o admin do tenant veja (mas não edite) o status do Data Broker, podemos adicionar uma verificação de role com `is_super_admin` para controlar a visibilidade. Mas por ora, a remoção simples da categoria é suficiente e mais segura.
+### Nenhuma migração de banco necessária
+O campo `theme_mode` será salvo no JSON `settings` da tabela `tenants`, que já aceita campos livres.
 
