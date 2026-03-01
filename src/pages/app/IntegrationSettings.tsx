@@ -111,7 +111,7 @@ const IntegrationSettings = () => {
     );
   }
 
-  const categories: IntegrationCategory[] = ["erp", "data_broker", "whatsapp"];
+  const categories: IntegrationCategory[] = ["erp", "whatsapp"];
 
   return (
     <div className="space-y-8">
