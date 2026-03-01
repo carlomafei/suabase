@@ -1,44 +1,24 @@
 
 
-## Correção: `[object Object]` no endereço dos pedidos
+## Ocultar integrações de Data Broker para usuários comuns
 
-### Causa raiz
+### Problema
+A lista `PROVIDER_CONFIGS` é estática e a tela de integrações renderiza todas as categorias para qualquer usuário autenticado. As integrações Deskdata e Data Broker (Genérico) deveriam ser visíveis **apenas no painel Super Admin**.
 
-No banco de dados, o campo `metadata.endereco.endereco` contém **um objeto** (não uma string). Isso acontece porque o `bling-sync` salva `end.endereco` que, quando vem da API do Bling como objeto, é armazenado recursivamente — criando `endereco.endereco = {bairro, cep, complemento, ...}`.
+### Correção
 
-Quando o React tenta renderizar `endereco.endereco` como texto, exibe `[object Object]`.
+**Arquivo: `src/pages/app/IntegrationSettings.tsx`**
 
-### Correções necessárias (2 arquivos + dados)
+Filtrar a categoria `data_broker` da lista de categorias exibidas. A tela do tenant mostrará apenas `erp` e `whatsapp`:
 
-| # | Arquivo | Mudança |
-|---|---------|---------|
-| 1 | `supabase/functions/bling-sync/index.ts` | Na construção do objeto endereço, verificar `typeof end.endereco === 'string'` antes de usar. Se for objeto, usar `end.endereco?.endereco` ou `end.geral?.endereco` como fallback para extrair a string da rua |
-| 2 | `src/pages/app/Orders.tsx` | Adicionar fallback defensivo: se `endereco.endereco` não for string, usar `""` — evita o `[object Object]` em registros já salvos |
-| 3 | **Dados existentes** | SQL para corrigir os registros que já têm o objeto aninhado, extraindo a string correta ou limpando o campo |
-
-### Detalhes técnicos
-
-**bling-sync (prevenção futura):**
 ```typescript
-const rua = typeof end.endereco === 'string'
-  ? end.endereco
-  : (end.endereco?.endereco || end.geral?.endereco || "");
+const categories: IntegrationCategory[] = ["erp", "whatsapp"];
 ```
 
-**Orders.tsx (fallback defensivo):**
-Em cada lugar que renderiza `endereco.endereco`:
-```typescript
-const rua = typeof endereco.endereco === 'string' ? endereco.endereco : "";
-```
+Isso remove completamente a seção "Data Broker" (incluindo Deskdata e Data Broker Genérico) da tela de configurações do tenant.
 
-**SQL de correção dos dados existentes:**
-```sql
-UPDATE contacts
-SET metadata = jsonb_set(
-  metadata,
-  '{endereco,endereco}',
-  '""'
-)
-WHERE jsonb_typeof(metadata->'endereco'->'endereco') = 'object';
-```
+A configuração dessas integrações continuará sendo feita pelo Super Admin via painel administrativo, que já possui acesso direto ao banco via `admin-api`.
+
+### Alternativa
+Se no futuro for necessário que o admin do tenant veja (mas não edite) o status do Data Broker, podemos adicionar uma verificação de role com `is_super_admin` para controlar a visibilidade. Mas por ora, a remoção simples da categoria é suficiente e mais segura.
 
