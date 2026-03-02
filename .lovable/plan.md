@@ -1,54 +1,67 @@
 
 
-## Implementar tema Light no Branding
+## Implementar ramificações (branches) no nó "Classificar com IA"
 
-### Situação atual
-O sistema possui apenas um tema dark definido em `src/index.css` (`:root`). Não existe definição de tema claro nem seletor de tema na tela de Branding.
+### Problema atual
+O fluxo de automação é uma **lista linear** de nós (`AutomationNode[]`). Não existe conceito de ramificação — após o "Classificar com IA", as ações seguem sequencialmente sem considerar o resultado da classificação.
 
-### Plano
+### Solução: Branches por label no nó classify_ai
 
-**1. Adicionar variáveis CSS do tema Light** (`src/index.css`)
-- Criar um bloco `.light` (ou `:root.light`) com todas as variáveis de cor invertidas para fundo claro:
-  - `--background: 0 0% 100%`, `--foreground: 220 20% 10%`
-  - `--card: 0 0% 98%`, `--muted: 220 14% 95%`, etc.
-  - Manter `--primary` e `--accent` dinâmicos (aplicados via JS do branding)
+Cada rótulo de classificação (Pos., Neg., Neu.) terá sua própria sequência de ações filhas. A estrutura do nó `classify_ai` será estendida com um campo `branches`:
 
-**2. Adicionar campo `theme_mode` ao BrandingSettings** (`src/hooks/useBranding.ts`)
-- Novo campo na interface: `theme_mode: "dark" | "light"`
-- Default: `"dark"`
-- Persistido em `tenants.settings.theme_mode`
-- No `useEffect`, aplicar/remover a classe `light` no `document.documentElement`
+```text
+AutomationNode (classify_ai)
+├── config.labels: "Positivo, Negativo, Neutro"
+├── config.branches:
+│   ├── "Positivo":  [ {actionType: "send_template", config: {...}} ]
+│   ├── "Negativo":  [ {actionType: "send_template", config: {...}} ]
+│   └── "Neutro":    [ {actionType: "send_template", config: {...}} ]
+```
 
-**3. Adicionar seletor de tema na tela de Branding** (`src/pages/app/BrandingSettings.tsx`)
-- Nova seção "Tema" com dois botões visuais (Dark / Light) ou um toggle
-- Atualiza `form.theme_mode` ao clicar
+### Mudanças necessárias
 
-**4. Aplicar a classe no layout** (`src/hooks/useBranding.ts`)
-- No `useEffect` existente, adicionar:
+| # | Arquivo | Mudança |
+|---|---------|---------|
+| 1 | `src/pages/app/Automations.tsx` — Tipos | Adicionar `branches?: Record<string, AutomationNode[]>` na interface `AutomationNode` |
+| 2 | `src/pages/app/Automations.tsx` — Canvas | Após o card do `classify_ai`, renderizar as colunas de branch lado a lado, com linhas de conexão saindo de cada badge de label, e para cada branch um mini-fluxo vertical com botão "+" para adicionar ações |
+| 3 | `src/pages/app/Automations.tsx` — Lógica | Funções `addBranchAction(nodeId, label, actionType)`, `removeBranchAction(nodeId, label, actionIndex)`, `updateBranchNodeConfig(nodeId, label, actionIndex, config)` |
+| 4 | `src/pages/app/Automations.tsx` — Sync labels | Quando o usuário edita os rótulos no campo de texto, sincronizar as chaves de `branches` (adicionar novas, manter existentes, remover as que sumiram) |
+
+### Renderização visual (canvas)
+
+Após o card "Classificar com IA":
+- Renderizar conectores que se dividem em N colunas (uma por label)
+- Cada coluna mostra o nome do label no topo e lista as ações da branch verticalmente
+- Cada coluna tem um botão "+" para adicionar ações naquela branch
+- As ações dentro de cada branch são cards menores reutilizando a mesma lógica de config (template, wait, move_stage)
+- Nós após o classify_ai no fluxo principal continuam renderizando normalmente abaixo das branches
+
+### Dados salvos
+
+O formato salvo no banco não muda (campo `actions` JSON). Apenas a estrutura interna do nó `classify_ai` ganha o campo `branches` dentro de `config`. Compatível com automações já existentes (sem branches = fluxo linear como antes).
+
+### Detalhes técnicos
+
+**Inicialização de branches ao criar nó classify_ai:**
 ```typescript
-if (branding.theme_mode === "light") {
-  document.documentElement.classList.add("light");
-} else {
-  document.documentElement.classList.remove("light");
+addAction("classify_ai") → config: {
+  labels: "Positivo, Negativo, Neutro",
+  branches: { "Positivo": [], "Negativo": [], "Neutro": [] }
 }
 ```
 
-### Variáveis Light propostas
-
+**Renderização das branches:**
 ```text
-Dark (atual)                    Light (novo)
-─────────────────────────────   ─────────────────────────────
---background: 220 20% 4%       --background: 0 0% 100%
---foreground: 0 0% 95%         --foreground: 220 20% 10%
---card: 220 18% 7%             --card: 0 0% 98%
---muted: 220 14% 14%           --muted: 220 14% 96%
---muted-foreground: 220 10% 55%  --muted-foreground: 220 10% 40%
---border: 220 14% 14%          --border: 220 14% 90%
---input: 220 14% 18%           --input: 220 14% 92%
---secondary: 220 16% 12%      --secondary: 220 16% 96%
---sidebar-background: 220 18% 7%  --sidebar-background: 0 0% 98%
+       ┌─────────────────────────────────────┐
+       │       Classificar com IA            │
+       │  ★ Pos.    ★ Neg.    ★ Neu.        │
+       └──────┬──────────┬──────────┬────────┘
+              │          │          │
+         ┌────▼────┐ ┌───▼────┐ ┌──▼─────┐
+         │Send TPL │ │Send TPL│ │Send TPL│
+         │"Que bom"│ │"Poxa"  │ │"Reenvi"│
+         └─────────┘ └────────┘ └────────┘
+              │          │          │
+            [ + ]      [ + ]      [ + ]
 ```
-
-### Nenhuma migração de banco necessária
-O campo `theme_mode` será salvo no JSON `settings` da tabela `tenants`, que já aceita campos livres.
 
