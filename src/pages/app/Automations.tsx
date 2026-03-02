@@ -54,6 +54,29 @@ const ACTIONS: { type: ActionType; label: string; icon: typeof Send; color: stri
   { type: "move_stage", label: "Mover Etapa CRM", icon: ArrowRight, color: "text-blue-400", category: "Lógica" },
 ];
 
+const BRANCH_COLORS = [
+  { badge: "bg-primary/15 text-primary", border: "border-primary/40", bg: "bg-primary/5", connector: "bg-primary/40" },
+  { badge: "bg-amber-400/15 text-amber-400", border: "border-amber-400/40", bg: "bg-amber-400/5", connector: "bg-amber-400/40" },
+  { badge: "bg-destructive/15 text-destructive", border: "border-destructive/40", bg: "bg-destructive/5", connector: "bg-destructive/40" },
+  { badge: "bg-blue-400/15 text-blue-400", border: "border-blue-400/40", bg: "bg-blue-400/5", connector: "bg-blue-400/40" },
+];
+
+// Helper to parse labels string
+const parseLabels = (labels: string): string[] =>
+  labels.split(",").map((l) => l.trim()).filter(Boolean);
+
+// Helper to sync branches with current labels
+const syncBranches = (
+  currentBranches: Record<string, AutomationNode[]> | undefined,
+  labels: string[]
+): Record<string, AutomationNode[]> => {
+  const branches: Record<string, AutomationNode[]> = {};
+  for (const label of labels) {
+    branches[label] = currentBranches?.[label] || [];
+  }
+  return branches;
+};
+
 const Automations = () => {
   const { tenantId } = useTenant();
   const [automations, setAutomations] = useState<Automation[]>([]);
@@ -67,6 +90,7 @@ const Automations = () => {
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<{ id: string; name: string; content: string; variables: string[] | null }[]>([]);
   const [stages, setStages] = useState<{ id: string; name: string; pipeline_name: string }[]>([]);
+  const [branchActionMenu, setBranchActionMenu] = useState<{ nodeId: string; label: string } | null>(null);
 
   const fetchAutomations = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -118,20 +142,84 @@ const Automations = () => {
   };
 
   const updateNodeConfig = (nodeId: string, config: Record<string, any>) => {
-    setFlowNodes((prev) => prev.map((n) => n.id === nodeId ? { ...n, config: { ...n.config, ...config } } : n));
+    setFlowNodes((prev) => prev.map((n) => {
+      if (n.id !== nodeId) return n;
+      const newConfig = { ...n.config, ...config };
+
+      // Sync branches when labels change on classify_ai
+      if (n.actionType === "classify_ai" && "labels" in config) {
+        const labels = parseLabels(config.labels || "Positivo, Negativo, Neutro");
+        newConfig.branches = syncBranches(n.config.branches, labels);
+      }
+
+      return { ...n, config: newConfig };
+    }));
   };
 
   const addAction = (type: ActionType) => {
     const newId = crypto.randomUUID();
+    const config: Record<string, any> = {};
+
+    if (type === "classify_ai") {
+      const defaultLabels = "Positivo, Negativo, Neutro";
+      config.labels = defaultLabels;
+      config.branches = syncBranches(undefined, parseLabels(defaultLabels));
+    }
+
     setFlowNodes((prev) => [
       ...prev,
-      { id: newId, type: "action", actionType: type, config: {} },
+      { id: newId, type: "action", actionType: type, config },
     ]);
     setExpandedNodeId(newId);
   };
 
   const removeNode = (id: string) => {
     setFlowNodes((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  // ── Branch management ──
+  const addBranchAction = (nodeId: string, label: string, actionType: ActionType) => {
+    setFlowNodes((prev) => prev.map((n) => {
+      if (n.id !== nodeId) return n;
+      const branches = { ...(n.config.branches || {}) };
+      const branchActions = [...(branches[label] || [])];
+      branchActions.push({
+        id: crypto.randomUUID(),
+        type: "action" as const,
+        actionType,
+        config: {},
+      });
+      branches[label] = branchActions;
+      return { ...n, config: { ...n.config, branches } };
+    }));
+    setBranchActionMenu(null);
+  };
+
+  const removeBranchAction = (nodeId: string, label: string, actionIndex: number) => {
+    setFlowNodes((prev) => prev.map((n) => {
+      if (n.id !== nodeId) return n;
+      const branches = { ...(n.config.branches || {}) };
+      const branchActions = [...(branches[label] || [])];
+      branchActions.splice(actionIndex, 1);
+      branches[label] = branchActions;
+      return { ...n, config: { ...n.config, branches } };
+    }));
+  };
+
+  const updateBranchNodeConfig = (nodeId: string, label: string, actionIndex: number, config: Record<string, any>) => {
+    setFlowNodes((prev) => prev.map((n) => {
+      if (n.id !== nodeId) return n;
+      const branches = { ...(n.config.branches || {}) };
+      const branchActions = [...(branches[label] || [])];
+      if (branchActions[actionIndex]) {
+        branchActions[actionIndex] = {
+          ...branchActions[actionIndex],
+          config: { ...branchActions[actionIndex].config, ...config },
+        };
+      }
+      branches[label] = branchActions;
+      return { ...n, config: { ...n.config, branches } };
+    }));
   };
 
   const handleSave = async () => {
@@ -187,6 +275,201 @@ const Automations = () => {
       </div>
     );
   }
+
+  // ── Branch action config renderer (mini version) ──
+  const renderBranchActionConfig = (
+    parentNodeId: string,
+    label: string,
+    branchNode: AutomationNode,
+    actionIndex: number
+  ) => {
+    const actionInfo = ACTIONS.find((a) => a.type === branchNode.actionType);
+    const ActionIcon = actionInfo?.icon || Zap;
+
+    return (
+      <div className="space-y-2">
+        {branchNode.actionType === "send_template" && (
+          <>
+            <Select
+              value={branchNode.config.template_id || ""}
+              onValueChange={(v) => {
+                const tpl = templates.find((t) => t.id === v);
+                updateBranchNodeConfig(parentNodeId, label, actionIndex, {
+                  template_id: v,
+                  template_name: tpl?.name || "",
+                  custom_message: tpl?.content || "",
+                });
+              }}
+            >
+              <SelectTrigger className="h-7 text-[11px]">
+                <SelectValue placeholder="Template" />
+              </SelectTrigger>
+              <SelectContent>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-xs">{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Textarea
+              value={branchNode.config.custom_message || ""}
+              onChange={(e) => updateBranchNodeConfig(parentNodeId, label, actionIndex, { custom_message: e.target.value })}
+              placeholder="Mensagem..."
+              className="text-[11px] min-h-[60px] font-mono"
+            />
+          </>
+        )}
+        {branchNode.actionType === "wait_response" && (
+          <div className="flex gap-1">
+            <Input
+              type="number" min={1}
+              value={branchNode.config.timeout || "1"}
+              onChange={(e) => updateBranchNodeConfig(parentNodeId, label, actionIndex, { timeout: e.target.value })}
+              className="h-7 text-[11px] w-16"
+            />
+            <Select
+              value={branchNode.config.timeout_unit || "hour"}
+              onValueChange={(v) => updateBranchNodeConfig(parentNodeId, label, actionIndex, { timeout_unit: v })}
+            >
+              <SelectTrigger className="h-7 text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="min" className="text-xs">Min</SelectItem>
+                <SelectItem value="hour" className="text-xs">Horas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        {branchNode.actionType === "move_stage" && (
+          <Select
+            value={branchNode.config.stage_id || ""}
+            onValueChange={(v) => {
+              const stg = stages.find((s) => s.id === v);
+              updateBranchNodeConfig(parentNodeId, label, actionIndex, { stage_id: v, stage_name: stg ? `${stg.pipeline_name} → ${stg.name}` : "" });
+            }}
+          >
+            <SelectTrigger className="h-7 text-[11px]">
+              <SelectValue placeholder="Etapa" />
+            </SelectTrigger>
+            <SelectContent>
+              {stages.map((s) => (
+                <SelectItem key={s.id} value={s.id} className="text-xs">{s.pipeline_name} → {s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    );
+  };
+
+  // ── Branches visual renderer ──
+  const renderBranches = (node: AutomationNode) => {
+    const labels = parseLabels(node.config.labels || "Positivo, Negativo, Neutro");
+    const branches: Record<string, AutomationNode[]> = node.config.branches || {};
+
+    if (labels.length === 0) return null;
+
+    return (
+      <div className="flex flex-col items-center gap-0 w-full">
+        {/* Connector from classify node splitting into branches */}
+        <div className="w-px h-4 bg-border" />
+
+        {/* Horizontal connector line */}
+        <div className="relative w-full flex justify-center">
+          <div className="flex gap-6 relative">
+            {/* Horizontal line connecting all branches */}
+            {labels.length > 1 && (
+              <div
+                className="absolute top-0 h-px bg-border"
+                style={{
+                  left: `calc(${100 / (labels.length * 2)}% + 0px)`,
+                  right: `calc(${100 / (labels.length * 2)}% + 0px)`,
+                }}
+              />
+            )}
+
+            {labels.map((label, li) => {
+              const colorSet = BRANCH_COLORS[li % BRANCH_COLORS.length];
+              const branchActions = branches[label] || [];
+
+              return (
+                <div key={label} className="flex flex-col items-center gap-2 min-w-[180px] max-w-[220px]">
+                  {/* Vertical connector from horizontal line */}
+                  <div className={cn("w-px h-4", colorSet.connector)} />
+
+                  {/* Label badge */}
+                  <Badge className={cn("text-xs font-semibold", colorSet.badge)}>
+                    {label}
+                  </Badge>
+
+                  {/* Branch actions */}
+                  {branchActions.map((branchNode, ai) => {
+                    const actionInfo = ACTIONS.find((a) => a.type === branchNode.actionType);
+                    const ActionIcon = actionInfo?.icon || Zap;
+
+                    return (
+                      <div key={branchNode.id} className="flex flex-col items-center gap-2 w-full">
+                        <div className={cn("w-px h-3", colorSet.connector)} />
+                        <Card className={cn("w-full border relative group", colorSet.border, colorSet.bg)}>
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <ActionIcon className={cn("h-3.5 w-3.5 shrink-0", actionInfo?.color)} />
+                              <span className="text-[11px] font-semibold truncate flex-1">{actionInfo?.label}</span>
+                              <button
+                                onClick={() => removeBranchAction(node.id, label, ai)}
+                                className="opacity-0 group-hover:opacity-100 p-0.5 text-destructive hover:bg-destructive/10 rounded transition-all"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                            {renderBranchActionConfig(node.id, label, branchNode, ai)}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })}
+
+                  {/* Add action button */}
+                  <div className={cn("w-px h-3", colorSet.connector)} />
+                  <div className="relative">
+                    <button
+                      onClick={() => setBranchActionMenu(
+                        branchActionMenu?.nodeId === node.id && branchActionMenu?.label === label
+                          ? null
+                          : { nodeId: node.id, label }
+                      )}
+                      className={cn(
+                        "w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors",
+                        colorSet.border
+                      )}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+
+                    {/* Action type dropdown */}
+                    {branchActionMenu?.nodeId === node.id && branchActionMenu?.label === label && (
+                      <div className="absolute top-10 left-1/2 -translate-x-1/2 z-10 bg-card border border-border rounded-lg shadow-lg p-1.5 min-w-[160px]">
+                        {ACTIONS.filter((a) => a.type !== "classify_ai").map((a) => (
+                          <button
+                            key={a.type}
+                            onClick={() => addBranchAction(node.id, label, a.type)}
+                            className="flex items-center gap-2 w-full px-2.5 py-1.5 text-[11px] rounded hover:bg-muted/50 text-left"
+                          >
+                            <a.icon className={cn("h-3.5 w-3.5", a.color)} />
+                            {a.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ── Editor View ──
   if (isEditorOpen) {
@@ -263,7 +546,7 @@ const Automations = () => {
         </div>
 
         {/* Canvas */}
-        <div className="flex-1 rounded-xl border border-border/50 bg-card/30 overflow-y-auto p-6">
+        <div className="flex-1 rounded-xl border border-border/50 bg-card/30 overflow-y-auto p-6" onClick={() => setBranchActionMenu(null)}>
           <div className="flex flex-col items-center gap-4 min-h-full">
             {/* Trigger node */}
             <Card className={cn("w-72 border-2 border-primary/40 bg-primary/5")}>
@@ -296,8 +579,8 @@ const Automations = () => {
                               node.actionType === "send_template" ? "bg-primary/5" : "bg-blue-400/5";
 
               return (
-                <div key={node.id} className="flex flex-col items-center gap-4">
-                  <Card className={cn("w-80 border-2 relative group", borderColor, bgColor)}>
+                <div key={node.id} className="flex flex-col items-center gap-4 w-full">
+                  <Card className={cn("w-80 border-2 relative group mx-auto", borderColor, bgColor)}>
                     <CardContent className="p-0">
                       <button
                         onClick={() => setExpandedNodeId(isExpanded ? null : node.id)}
@@ -449,7 +732,7 @@ const Automations = () => {
                                   placeholder="Positivo, Neutro, Negativo"
                                   className="h-8 text-xs mt-1"
                                 />
-                                <p className="text-[10px] text-muted-foreground mt-1">Separe os rótulos por vírgula</p>
+                                <p className="text-[10px] text-muted-foreground mt-1">Separe os rótulos por vírgula. As branches abaixo serão sincronizadas automaticamente.</p>
                               </div>
                               <div>
                                 <Label className="text-xs">Prompt de contexto (opcional)</Label>
@@ -519,22 +802,25 @@ const Automations = () => {
                         </div>
                       )}
 
-                      {/* Classify AI branches */}
+                      {/* Classify AI label badges (when collapsed) */}
                       {node.actionType === "classify_ai" && !isExpanded && (
                         <div className="px-4 pb-3 flex gap-2 justify-center">
-                          {(node.config.labels || "Positivo, Neutro, Negativo").split(",").slice(0, 4).map((label: string, li: number) => (
-                            <Badge key={li} className={cn("text-xs",
-                              li === 0 ? "bg-primary/15 text-primary" :
-                              li === 1 ? "bg-amber-400/15 text-amber-400" :
-                              "bg-destructive/15 text-destructive"
-                            )}>
-                              {label.trim().substring(0, 6)}
+                          {parseLabels(node.config.labels || "Positivo, Neutro, Negativo").slice(0, 4).map((label, li) => (
+                            <Badge key={li} className={cn("text-xs", BRANCH_COLORS[li % BRANCH_COLORS.length].badge)}>
+                              {label.substring(0, 8)}
                             </Badge>
                           ))}
                         </div>
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Render branches after classify_ai */}
+                  {node.actionType === "classify_ai" && node.config.branches && (
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {renderBranches(node)}
+                    </div>
+                  )}
 
                   {i < flowNodes.length - 1 && <div className="w-px h-6 bg-border" />}
                 </div>
