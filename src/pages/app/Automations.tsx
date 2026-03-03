@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Zap, Clock, MessageCircle, GitBranch, Send, Pause, Sparkles, ArrowRight,
   Plus, Trash2, Loader2, Play, Square, ChevronDown, ChevronRight, Settings2, X,
@@ -55,15 +56,22 @@ const ACTIONS: { type: ActionType; label: string; icon: typeof Send; color: stri
   { type: "move_stage", label: "Mover Etapa CRM", icon: ArrowRight, color: "text-blue-400", category: "Lógica" },
 ];
 
+const BRAZILIAN_STATES = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA",
+  "PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+];
+
+const MARKETPLACES = ["Shopee", "Mercado Livre", "Amazon", "Magalu", "Americanas"];
+
+const parseLabels = (labels: string): string[] =>
+  labels.split(",").map((l) => l.trim()).filter(Boolean);
+
 const BRANCH_COLORS = [
   { badge: "bg-primary/15 text-primary", border: "border-primary/40", bg: "bg-primary/5", connector: "bg-primary/40" },
   { badge: "bg-amber-400/15 text-amber-400", border: "border-amber-400/40", bg: "bg-amber-400/5", connector: "bg-amber-400/40" },
   { badge: "bg-destructive/15 text-destructive", border: "border-destructive/40", bg: "bg-destructive/5", connector: "bg-destructive/40" },
   { badge: "bg-blue-400/15 text-blue-400", border: "border-blue-400/40", bg: "bg-blue-400/5", connector: "bg-blue-400/40" },
 ];
-
-const parseLabels = (labels: string): string[] =>
-  labels.split(",").map((l) => l.trim()).filter(Boolean);
 
 const syncBranches = (
   currentBranches: Record<string, AutomationNode[]> | undefined,
@@ -74,6 +82,232 @@ const syncBranches = (
     branches[label] = currentBranches?.[label] || [];
   }
   return branches;
+};
+
+// ── Trigger Config Panel for new_order ──
+const NewOrderTriggerConfigPanel = ({
+  config,
+  onClose,
+  onUpdateConfig,
+}: {
+  config: Record<string, any>;
+  onClose: () => void;
+  onUpdateConfig: (config: Record<string, any>) => void;
+}) => {
+  return (
+    <div className="w-80 shrink-0 border-l border-border bg-card flex flex-col h-full overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <h3 className="font-display font-semibold text-sm">Configurar Gatilho: Cliente Capturado</h3>
+        <button onClick={onClose} className="p-1 rounded hover:bg-muted/50 text-muted-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-5">
+          {/* Valor da Venda */}
+          <div>
+            <Label className="text-xs font-semibold">Valor da Venda</Label>
+            <div className="flex gap-2 mt-1">
+              <Select
+                value={config.value_operator || "gte"}
+                onValueChange={(v) => onUpdateConfig({ value_operator: v })}
+              >
+                <SelectTrigger className="h-8 text-xs w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gte">Maior que</SelectItem>
+                  <SelectItem value="lte">Menor que</SelectItem>
+                  <SelectItem value="eq">Igual a</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                type="number"
+                value={config.value_amount || ""}
+                onChange={(e) => onUpdateConfig({ value_amount: e.target.value })}
+                placeholder="Ex: 100.00"
+                className="h-8 text-xs flex-1"
+              />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Deixe o valor em branco para aceitar qualquer valor</p>
+          </div>
+
+          {/* Produto (incluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Produto (incluir)</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                value={config.product_include || ""}
+                onChange={(e) => onUpdateConfig({ product_include: e.target.value })}
+                placeholder="Nome do produto"
+                className="h-8 text-xs flex-1"
+              />
+              <Select
+                value={config.product_include_op || "contains"}
+                onValueChange={(v) => onUpdateConfig({ product_include_op: v })}
+              >
+                <SelectTrigger className="h-8 text-xs w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contains">Contém</SelectItem>
+                  <SelectItem value="not_contains">NÃO contém</SelectItem>
+                  <SelectItem value="equals">Igual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Produto (excluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Produto (excluir)</Label>
+            <div className="flex gap-2 mt-1">
+              <Input
+                value={config.product_exclude || ""}
+                onChange={(e) => onUpdateConfig({ product_exclude: e.target.value })}
+                placeholder="Produto a excluir"
+                className="h-8 text-xs flex-1"
+              />
+              <Select
+                value={config.product_exclude_op || "not_contains"}
+                onValueChange={(v) => onUpdateConfig({ product_exclude_op: v })}
+              >
+                <SelectTrigger className="h-8 text-xs w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="contains">Contém</SelectItem>
+                  <SelectItem value="not_contains">NÃO contém</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Pedidos com este produto serão ignorados</p>
+          </div>
+
+          {/* Estado (incluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Estado (incluir)</Label>
+            <Select
+              value={config.state_include || "all"}
+              onValueChange={(v) => onUpdateConfig({ state_include: v })}
+            >
+              <SelectTrigger className="h-8 text-xs mt-1">
+                <SelectValue placeholder="Todos os estados" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os estados</SelectItem>
+                {BRAZILIAN_STATES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Estado (excluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Estado (excluir)</Label>
+            <Select
+              value={config.state_exclude || "none"}
+              onValueChange={(v) => onUpdateConfig({ state_exclude: v })}
+            >
+              <SelectTrigger className="h-8 text-xs mt-1">
+                <SelectValue placeholder="Nenhum estado excluído" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum estado excluído</SelectItem>
+                {BRAZILIAN_STATES.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">Pedidos deste estado serão ignorados</p>
+          </div>
+
+          {/* Cidade (incluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Cidade (incluir)</Label>
+            <Input
+              value={config.city_include || ""}
+              onChange={(e) => onUpdateConfig({ city_include: e.target.value })}
+              placeholder="Ex: São Paulo"
+              className="h-8 text-xs mt-1"
+            />
+          </div>
+
+          {/* Cidade (excluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Cidade (excluir)</Label>
+            <Input
+              value={config.city_exclude || ""}
+              onChange={(e) => onUpdateConfig({ city_exclude: e.target.value })}
+              placeholder="Cidade a excluir"
+              className="h-8 text-xs mt-1"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">Pedidos desta cidade serão ignorados</p>
+          </div>
+
+          <Separator />
+
+          {/* Marketplaces (incluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Marketplaces (incluir)</Label>
+            <RadioGroup
+              value={config.marketplace_include || ""}
+              onValueChange={(v) => onUpdateConfig({ marketplace_include: v })}
+              className="mt-2 space-y-1.5"
+            >
+              {MARKETPLACES.map((m) => (
+                <div key={m} className="flex items-center gap-2">
+                  <RadioGroupItem value={m} id={`mp-inc-${m}`} />
+                  <Label htmlFor={`mp-inc-${m}`} className="text-xs font-normal cursor-pointer">{m}</Label>
+                </div>
+              ))}
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="outro" id="mp-inc-outro" />
+                <Label htmlFor="mp-inc-outro" className="text-xs font-normal cursor-pointer">Outro</Label>
+              </div>
+            </RadioGroup>
+            <p className="text-[10px] text-muted-foreground mt-1.5">Deixe vazio para aceitar todos os marketplaces</p>
+            {config.marketplace_include && (
+              <button
+                onClick={() => onUpdateConfig({ marketplace_include: "" })}
+                className="text-[10px] text-primary underline mt-0.5"
+              >
+                Limpar seleção
+              </button>
+            )}
+          </div>
+
+          <Separator />
+
+          {/* Marketplaces (excluir) */}
+          <div>
+            <Label className="text-xs font-semibold">Marketplaces (excluir)</Label>
+            <RadioGroup
+              value={config.marketplace_exclude || ""}
+              onValueChange={(v) => onUpdateConfig({ marketplace_exclude: v })}
+              className="mt-2 space-y-1.5"
+            >
+              {MARKETPLACES.map((m) => (
+                <div key={m} className="flex items-center gap-2">
+                  <RadioGroupItem value={`NOT_${m}`} id={`mp-exc-${m}`} />
+                  <Label htmlFor={`mp-exc-${m}`} className="text-xs font-normal cursor-pointer">NÃO {m}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+            {config.marketplace_exclude && (
+              <button
+                onClick={() => onUpdateConfig({ marketplace_exclude: "" })}
+                className="text-[10px] text-primary underline mt-1"
+              >
+                Limpar seleção
+              </button>
+            )}
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
 };
 
 // ── Side Panel Config Component ──
@@ -455,6 +689,8 @@ const Automations = () => {
     label: string;
     actionIndex: number;
   } | null>(null);
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>({});
+  const [showTriggerConfig, setShowTriggerConfig] = useState(false);
 
   const fetchAutomations = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -492,6 +728,7 @@ const Automations = () => {
   const closeSidePanel = () => {
     setSelectedNodeId(null);
     setSelectedBranchAction(null);
+    setShowTriggerConfig(false);
   };
 
   const openEditor = (auto: Automation) => {
@@ -499,6 +736,7 @@ const Automations = () => {
     setNewName(auto.name);
     setSelectedTrigger(auto.trigger_type as TriggerType);
     setFlowNodes(auto.actions.length > 0 ? auto.actions : []);
+    setTriggerConfig(auto.trigger_config || {});
     closeSidePanel();
   };
 
@@ -507,6 +745,7 @@ const Automations = () => {
     setNewName("");
     setSelectedTrigger("new_order");
     setFlowNodes([]);
+    setTriggerConfig({});
     setEditing(null);
     closeSidePanel();
   };
@@ -603,7 +842,7 @@ const Automations = () => {
       name: newName,
       tenant_id: tenantId,
       trigger_type: selectedTrigger,
-      trigger_config: {} as any,
+      trigger_config: triggerConfig as any,
       actions: flowNodes as any,
       is_active: editing?.is_active ?? false,
     };
@@ -839,15 +1078,28 @@ const Automations = () => {
         <div className="flex-1 overflow-y-auto p-6 bg-card/30" onClick={() => { setBranchActionMenu(null); }}>
           <div className="flex flex-col items-center gap-4 min-h-full">
             {/* Trigger node */}
-            <Card className="w-64 border-2 border-primary/40 bg-primary/5">
+            <Card
+              className={cn(
+                "w-64 border-2 border-primary/40 bg-primary/5 cursor-pointer transition-all",
+                showTriggerConfig && "ring-2 ring-primary"
+              )}
+              onClick={() => {
+                setSelectedNodeId(null);
+                setSelectedBranchAction(null);
+                setShowTriggerConfig(!showTriggerConfig);
+              }}
+            >
               <CardContent className="p-3 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
                   <TriggerIcon className="h-4 w-4 text-primary" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="font-display font-semibold text-sm">{triggerInfo?.label}</p>
-                  <p className="text-[10px] text-muted-foreground">Gatilho inicial</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {Object.keys(triggerConfig).length > 0 ? "Configurado" : "Clique para configurar"}
+                  </p>
                 </div>
+                <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
               </CardContent>
             </Card>
 
@@ -943,7 +1195,15 @@ const Automations = () => {
         </div>
 
         {/* Right side panel - config */}
-        {selectedNode && (
+        {showTriggerConfig && selectedTrigger === "new_order" && (
+          <NewOrderTriggerConfigPanel
+            config={triggerConfig}
+            onClose={closeSidePanel}
+            onUpdateConfig={(config) => setTriggerConfig((prev) => ({ ...prev, ...config }))}
+          />
+        )}
+
+        {selectedNode && !showTriggerConfig && (
           <NodeConfigPanel
             node={selectedNode}
             title={ACTIONS.find((a) => a.type === selectedNode.actionType)?.label || "Configurar"}
