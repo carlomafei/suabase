@@ -21,8 +21,8 @@ const CHART_COLORS = [
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(220, 18%, 7%)",
-  border: "1px solid hsl(220, 14%, 14%)",
+  backgroundColor: "hsl(var(--card))",
+  border: "1px solid hsl(var(--border))",
   borderRadius: "8px",
   color: "hsl(0, 0%, 95%)",
   fontSize: "12px",
@@ -206,10 +206,10 @@ const Analytics = () => {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={marketplacePerf} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 14%)" />
-                    <XAxis dataKey="name" tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 11 }} axisLine={{ stroke: "hsl(220, 14%, 14%)" }} />
-                    <YAxis yAxisId="left" tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 11 }} axisLine={{ stroke: "hsl(220, 14%, 14%)" }} allowDecimals={false} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 11 }} axisLine={{ stroke: "hsl(220, 14%, 14%)" }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} />
+                    <YAxis yAxisId="left" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(value: any, name: string) => [name === "faturamento" ? formatCurrency(value) : value, name === "faturamento" ? "Faturamento" : "Pedidos"]} />
                     <Legend iconType="circle" formatter={(v: string) => <span className="text-xs text-muted-foreground">{v === "pedidos" ? "Pedidos" : "Faturamento"}</span>} />
                     <Bar yAxisId="left" dataKey="pedidos" fill="hsl(152, 76%, 46%)" radius={[4, 4, 0, 0]} />
@@ -235,7 +235,7 @@ const Analytics = () => {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-32 h-32">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(220, 14%, 14%)" strokeWidth="10" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--border))" strokeWidth="10" />
                     <circle
                       cx="60" cy="60" r="50" fill="none"
                       stroke="hsl(200, 70%, 50%)"
@@ -258,7 +258,7 @@ const Analytics = () => {
               <div className="flex flex-col items-center gap-3">
                 <div className="relative w-32 h-32">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(220, 14%, 14%)" strokeWidth="10" />
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--border))" strokeWidth="10" />
                     <circle
                       cx="60" cy="60" r="50" fill="none"
                       stroke="hsl(152, 76%, 46%)"

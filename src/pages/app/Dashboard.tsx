@@ -236,24 +236,24 @@ const Dashboard = () => {
                     <stop offset="95%" stopColor="hsl(152, 76%, 46%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 14%)" />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
-                  axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
                 />
                 <YAxis
-                  tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
-                  axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  axisLine={{ stroke: "hsl(var(--border))" }}
                   tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                 />
                 <Tooltip
                   cursor={false}
                   contentStyle={{
-                    backgroundColor: "hsl(220, 18%, 7%)",
-                    border: "1px solid hsl(220, 14%, 14%)",
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
                     borderRadius: "8px",
-                    color: "hsl(0, 0%, 95%)",
+                    color: "hsl(var(--foreground))",
                     fontSize: "12px",
                   }}
                   formatter={(value: number) => [formatCurrency(value), "Faturamento"]}
@@ -333,24 +333,24 @@ const Dashboard = () => {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.whatsappEngagement || []} barGap={4}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 14%)" />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis
                     dataKey="name"
-                    tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
-                    axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
                   />
                   <YAxis
-                    tick={{ fill: "hsl(220, 10%, 55%)", fontSize: 12 }}
-                    axisLine={{ stroke: "hsl(220, 14%, 14%)" }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    axisLine={{ stroke: "hsl(var(--border))" }}
                     allowDecimals={false}
                   />
                   <Tooltip
                     cursor={false}
                     contentStyle={{
-                      backgroundColor: "hsl(220, 18%, 7%)",
-                      border: "1px solid hsl(220, 14%, 14%)",
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
-                      color: "hsl(0, 0%, 95%)",
+                      color: "hsl(var(--foreground))",
                       fontSize: "12px",
                     }}
                   />
