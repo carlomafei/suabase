@@ -206,7 +206,7 @@ const Analytics = () => {
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={marketplacePerf} barGap={4}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <CartesianGrid strokeDasharray="8 4" className="stroke-border" />
                     <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} />
                     <YAxis yAxisId="left" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} allowDecimals={false} />
                     <YAxis yAxisId="right" orientation="right" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={{ stroke: "hsl(var(--border))" }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
