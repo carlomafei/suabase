@@ -56,6 +56,49 @@ async function fetchBrandingData(tenantId: string): Promise<BrandingSettings> {
   return defaultBranding;
 }
 
+let activeBrandingHooks = 0;
+
+const applyBrandingToRoot = (branding: BrandingSettings) => {
+  const root = document.documentElement;
+  const primary = hslStringToValues(branding.primary_color);
+  const secondary = hslStringToValues(branding.secondary_color);
+
+  if (primary) {
+    root.style.setProperty("--primary", primary);
+    root.style.setProperty("--accent", primary);
+    root.style.setProperty("--ring", primary);
+    root.style.setProperty("--sidebar-primary", primary);
+    root.style.setProperty("--sidebar-ring", primary);
+    root.style.setProperty("--gradient-primary", `linear-gradient(135deg, hsl(${primary}), hsl(${primary} / 0.8))`);
+    root.style.setProperty("--gradient-glow", `radial-gradient(ellipse at 50% 0%, hsl(${primary} / 0.15) 0%, transparent 60%)`);
+  }
+
+  if (secondary) {
+    root.style.setProperty("--secondary", secondary);
+    root.style.setProperty("--sidebar-accent", secondary);
+  }
+
+  if (branding.theme_mode === "light") {
+    root.classList.add("light");
+  } else {
+    root.classList.remove("light");
+  }
+};
+
+const clearBrandingFromRoot = () => {
+  const root = document.documentElement;
+  root.style.removeProperty("--primary");
+  root.style.removeProperty("--accent");
+  root.style.removeProperty("--ring");
+  root.style.removeProperty("--sidebar-primary");
+  root.style.removeProperty("--sidebar-ring");
+  root.style.removeProperty("--gradient-primary");
+  root.style.removeProperty("--gradient-glow");
+  root.style.removeProperty("--secondary");
+  root.style.removeProperty("--sidebar-accent");
+  root.classList.remove("light");
+};
+
 export const useBranding = () => {
   const { tenantId } = useTenant();
   const queryClient = useQueryClient();
@@ -69,45 +112,21 @@ export const useBranding = () => {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Apply CSS variables when branding changes
+  // Track active hook instances to avoid theme flicker on route changes
   useEffect(() => {
-    const root = document.documentElement;
-    const primary = hslStringToValues(branding.primary_color);
-    const secondary = hslStringToValues(branding.secondary_color);
-
-    if (primary) {
-      root.style.setProperty("--primary", primary);
-      root.style.setProperty("--accent", primary);
-      root.style.setProperty("--ring", primary);
-      root.style.setProperty("--sidebar-primary", primary);
-      root.style.setProperty("--sidebar-ring", primary);
-      root.style.setProperty("--gradient-primary", `linear-gradient(135deg, hsl(${primary}), hsl(${primary} / 0.8))`);
-      root.style.setProperty("--gradient-glow", `radial-gradient(ellipse at 50% 0%, hsl(${primary} / 0.15) 0%, transparent 60%)`);
-    }
-    if (secondary) {
-      root.style.setProperty("--secondary", secondary);
-      root.style.setProperty("--sidebar-accent", secondary);
-    }
-
-    // Apply theme mode
-    if (branding.theme_mode === "light") {
-      root.classList.add("light");
-    } else {
-      root.classList.remove("light");
-    }
+    activeBrandingHooks += 1;
 
     return () => {
-      root.style.removeProperty("--primary");
-      root.style.removeProperty("--accent");
-      root.style.removeProperty("--ring");
-      root.style.removeProperty("--sidebar-primary");
-      root.style.removeProperty("--sidebar-ring");
-      root.style.removeProperty("--gradient-primary");
-      root.style.removeProperty("--gradient-glow");
-      root.style.removeProperty("--secondary");
-      root.style.removeProperty("--sidebar-accent");
-      root.classList.remove("light");
+      activeBrandingHooks -= 1;
+      if (activeBrandingHooks === 0) {
+        clearBrandingFromRoot();
+      }
     };
+  }, []);
+
+  // Apply CSS variables and theme mode when branding changes
+  useEffect(() => {
+    applyBrandingToRoot(branding);
   }, [branding.primary_color, branding.secondary_color, branding.theme_mode]);
 
   const mutation = useMutation({
