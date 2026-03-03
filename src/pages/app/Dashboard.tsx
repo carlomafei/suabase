@@ -236,7 +236,7 @@ const Dashboard = () => {
                     <stop offset="95%" stopColor="hsl(152, 76%, 46%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid className="stroke-border" />
+                <CartesianGrid stroke="hsl(var(--border) / 0.45)" />
                 <XAxis
                   dataKey="name"
                   tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
@@ -333,7 +333,7 @@ const Dashboard = () => {
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.whatsappEngagement || []} barGap={4}>
-                  <CartesianGrid className="stroke-border" />
+                  <CartesianGrid stroke="hsl(var(--border) / 0.45)" />
                   <XAxis
                     dataKey="name"
                     tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
