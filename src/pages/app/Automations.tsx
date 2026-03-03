@@ -310,6 +310,186 @@ const NewOrderTriggerConfigPanel = ({
   );
 };
 
+// ── Trigger Config Panel for scheduled ──
+const WEEKDAYS = [
+  { value: "mon", label: "Seg" },
+  { value: "tue", label: "Ter" },
+  { value: "wed", label: "Qua" },
+  { value: "thu", label: "Qui" },
+  { value: "fri", label: "Sex" },
+  { value: "sat", label: "Sáb" },
+  { value: "sun", label: "Dom" },
+];
+
+const TIMEZONES = [
+  { value: "America/Sao_Paulo", label: "Brasília (GMT-3)" },
+  { value: "America/Manaus", label: "Manaus (GMT-4)" },
+  { value: "America/Belem", label: "Belém (GMT-3)" },
+  { value: "America/Fortaleza", label: "Fortaleza (GMT-3)" },
+  { value: "America/Recife", label: "Recife (GMT-3)" },
+  { value: "America/Cuiaba", label: "Cuiabá (GMT-4)" },
+  { value: "America/Porto_Velho", label: "Porto Velho (GMT-4)" },
+  { value: "America/Rio_Branco", label: "Rio Branco (GMT-5)" },
+  { value: "America/Noronha", label: "Fernando de Noronha (GMT-2)" },
+];
+
+const ScheduledTriggerConfigPanel = ({
+  config,
+  onClose,
+  onUpdateConfig,
+}: {
+  config: Record<string, any>;
+  onClose: () => void;
+  onUpdateConfig: (config: Record<string, any>) => void;
+}) => {
+  const recurrence = config.recurrence || "daily";
+  const toggleWeekday = (day: string) => {
+    const current: string[] = config.weekdays || [];
+    const updated = current.includes(day) ? current.filter((d: string) => d !== day) : [...current, day];
+    onUpdateConfig({ weekdays: updated });
+  };
+
+  return (
+    <div className="w-80 shrink-0 border-l border-border bg-card flex flex-col h-full overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <h3 className="font-display font-semibold text-sm">Configurar Gatilho: Programação</h3>
+        <button onClick={onClose} className="p-1 rounded hover:bg-muted/50 text-muted-foreground">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-5">
+          {/* Recorrência */}
+          <div>
+            <Label className="text-xs font-semibold">Tipo de recorrência</Label>
+            <Select
+              value={recurrence}
+              onValueChange={(v) => onUpdateConfig({ recurrence: v })}
+            >
+              <SelectTrigger className="h-8 text-xs mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="once">Única vez</SelectItem>
+                <SelectItem value="daily">Diário</SelectItem>
+                <SelectItem value="weekly">Semanal</SelectItem>
+                <SelectItem value="monthly">Mensal</SelectItem>
+                <SelectItem value="custom">Personalizado (Cron)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Horário */}
+          {recurrence !== "custom" && (
+            <div>
+              <Label className="text-xs font-semibold">Horário de execução</Label>
+              <Input
+                type="time"
+                value={config.time || "09:00"}
+                onChange={(e) => onUpdateConfig({ time: e.target.value })}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+          )}
+
+          {/* Data específica (única vez) */}
+          {recurrence === "once" && (
+            <div>
+              <Label className="text-xs font-semibold">Data de execução</Label>
+              <Input
+                type="date"
+                value={config.run_date || ""}
+                onChange={(e) => onUpdateConfig({ run_date: e.target.value })}
+                className="h-8 text-xs mt-1"
+              />
+            </div>
+          )}
+
+          {/* Dias da semana (semanal) */}
+          {recurrence === "weekly" && (
+            <div>
+              <Label className="text-xs font-semibold">Dias da semana</Label>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {WEEKDAYS.map((day) => {
+                  const active = (config.weekdays || []).includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      onClick={() => toggleWeekday(day.value)}
+                      className={cn(
+                        "px-2.5 py-1 rounded-md text-[11px] font-medium border transition-colors",
+                        active
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-muted/30 text-muted-foreground border-border hover:border-primary/40"
+                      )}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1.5">Selecione os dias em que a automação será executada</p>
+            </div>
+          )}
+
+          {/* Dia do mês (mensal) */}
+          {recurrence === "monthly" && (
+            <div>
+              <Label className="text-xs font-semibold">Dia do mês</Label>
+              <Input
+                type="number"
+                min={1}
+                max={31}
+                value={config.month_day || 1}
+                onChange={(e) => onUpdateConfig({ month_day: parseInt(e.target.value) || 1 })}
+                className="h-8 text-xs mt-1"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">De 1 a 31. Se o mês não tiver o dia, executa no último dia.</p>
+            </div>
+          )}
+
+          {/* Cron (personalizado) */}
+          {recurrence === "custom" && (
+            <div>
+              <Label className="text-xs font-semibold">Expressão Cron</Label>
+              <Input
+                value={config.cron_expression || ""}
+                onChange={(e) => onUpdateConfig({ cron_expression: e.target.value })}
+                placeholder="0 9 * * 1-5"
+                className="h-8 text-xs mt-1 font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Formato: minuto hora dia mês dia_semana<br />
+                Ex: <span className="font-mono">0 9 * * 1-5</span> = Seg-Sex às 9h
+              </p>
+            </div>
+          )}
+
+          <Separator />
+
+          {/* Fuso horário */}
+          <div>
+            <Label className="text-xs font-semibold">Fuso horário</Label>
+            <Select
+              value={config.timezone || "America/Sao_Paulo"}
+              onValueChange={(v) => onUpdateConfig({ timezone: v })}
+            >
+              <SelectTrigger className="h-8 text-xs mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
 // ── Side Panel Config Component ──
 const NodeConfigPanel = ({
   node,
@@ -1197,6 +1377,14 @@ const Automations = () => {
         {/* Right side panel - config */}
         {showTriggerConfig && selectedTrigger === "new_order" && (
           <NewOrderTriggerConfigPanel
+            config={triggerConfig}
+            onClose={closeSidePanel}
+            onUpdateConfig={(config) => setTriggerConfig((prev) => ({ ...prev, ...config }))}
+          />
+        )}
+
+        {showTriggerConfig && selectedTrigger === "scheduled" && (
+          <ScheduledTriggerConfigPanel
             config={triggerConfig}
             onClose={closeSidePanel}
             onUpdateConfig={(config) => setTriggerConfig((prev) => ({ ...prev, ...config }))}
