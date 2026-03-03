@@ -14,46 +14,12 @@ export interface BrandingSettings {
   theme_mode: "dark" | "light";
 }
 
-const defaultBranding: BrandingSettings = {
-  platform_name: "Taqt",
-  logo_url: "",
-  primary_color: "152 76% 46%",
-  secondary_color: "220 16% 12%",
-  footer_text: "",
-  hide_platform_branding: false,
-  custom_domain: "",
-  theme_mode: "dark",
-};
+const BRANDING_CACHE_KEY = "taqt_branding_cache";
 
 function hslStringToValues(hsl: string): string | null {
   const match = hsl.match(/(\d+)\s+(\d+)%\s+(\d+)%/) || hsl.match(/(\d+),?\s*(\d+)%,?\s*(\d+)%/);
   if (match) return `${match[1]} ${match[2]}% ${match[3]}%`;
   return null;
-}
-
-function parseBrandingFromData(data: any): BrandingSettings {
-  const settings = (data.settings as Record<string, any>) || {};
-  return {
-    platform_name: settings.platform_name || data.name || defaultBranding.platform_name,
-    logo_url: settings.logo_url || "",
-    primary_color: settings.primary_color || defaultBranding.primary_color,
-    secondary_color: settings.secondary_color || defaultBranding.secondary_color,
-    footer_text: settings.footer_text || "",
-    hide_platform_branding: settings.hide_platform_branding || false,
-    custom_domain: settings.custom_domain || "",
-    theme_mode: settings.theme_mode || "dark",
-  };
-}
-
-async function fetchBrandingData(tenantId: string): Promise<BrandingSettings> {
-  const { data } = await supabase
-    .from("tenants")
-    .select("settings, name")
-    .eq("id", tenantId)
-    .single();
-
-  if (data) return parseBrandingFromData(data);
-  return defaultBranding;
 }
 
 function applyBrandingToRoot(branding: BrandingSettings) {
@@ -81,6 +47,62 @@ function applyBrandingToRoot(branding: BrandingSettings) {
   } else {
     root.classList.remove("light");
   }
+}
+
+function cacheBranding(branding: BrandingSettings) {
+  try {
+    localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(branding));
+  } catch {}
+}
+
+function getCachedBranding(): BrandingSettings {
+  try {
+    const cached = localStorage.getItem(BRANDING_CACHE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch {}
+  return {
+    platform_name: "Taqt",
+    logo_url: "",
+    primary_color: "152 76% 46%",
+    secondary_color: "220 16% 12%",
+    footer_text: "",
+    hide_platform_branding: false,
+    custom_domain: "",
+    theme_mode: "dark",
+  };
+}
+
+// Read cached branding and apply immediately (before any React render)
+const defaultBranding: BrandingSettings = getCachedBranding();
+applyBrandingToRoot(defaultBranding);
+
+function parseBrandingFromData(data: any): BrandingSettings {
+  const settings = (data.settings as Record<string, any>) || {};
+  return {
+    platform_name: settings.platform_name || data.name || defaultBranding.platform_name,
+    logo_url: settings.logo_url || "",
+    primary_color: settings.primary_color || defaultBranding.primary_color,
+    secondary_color: settings.secondary_color || defaultBranding.secondary_color,
+    footer_text: settings.footer_text || "",
+    hide_platform_branding: settings.hide_platform_branding || false,
+    custom_domain: settings.custom_domain || "",
+    theme_mode: settings.theme_mode || "dark",
+  };
+}
+
+async function fetchBrandingData(tenantId: string): Promise<BrandingSettings> {
+  const { data } = await supabase
+    .from("tenants")
+    .select("settings, name")
+    .eq("id", tenantId)
+    .single();
+
+  if (data) {
+    const branding = parseBrandingFromData(data);
+    cacheBranding(branding);
+    return branding;
+  }
+  return defaultBranding;
 }
 
 export const useBranding = () => {
@@ -120,6 +142,7 @@ export const useBranding = () => {
         })
         .eq("id", tenantId);
       if (error) throw error;
+      cacheBranding(newBranding);
       return newBranding;
     },
     onSuccess: (newBranding) => {
