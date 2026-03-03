@@ -56,9 +56,7 @@ async function fetchBrandingData(tenantId: string): Promise<BrandingSettings> {
   return defaultBranding;
 }
 
-let activeBrandingHooks = 0;
-
-const applyBrandingToRoot = (branding: BrandingSettings) => {
+function applyBrandingToRoot(branding: BrandingSettings) {
   const root = document.documentElement;
   const primary = hslStringToValues(branding.primary_color);
   const secondary = hslStringToValues(branding.secondary_color);
@@ -83,21 +81,7 @@ const applyBrandingToRoot = (branding: BrandingSettings) => {
   } else {
     root.classList.remove("light");
   }
-};
-
-const clearBrandingFromRoot = () => {
-  const root = document.documentElement;
-  root.style.removeProperty("--primary");
-  root.style.removeProperty("--accent");
-  root.style.removeProperty("--ring");
-  root.style.removeProperty("--sidebar-primary");
-  root.style.removeProperty("--sidebar-ring");
-  root.style.removeProperty("--gradient-primary");
-  root.style.removeProperty("--gradient-glow");
-  root.style.removeProperty("--secondary");
-  root.style.removeProperty("--sidebar-accent");
-  root.classList.remove("light");
-};
+}
 
 export const useBranding = () => {
   const { tenantId } = useTenant();
@@ -111,18 +95,6 @@ export const useBranding = () => {
     enabled: !!tenantId,
     staleTime: 1000 * 60 * 5,
   });
-
-  // Track active hook instances to avoid theme flicker on route changes
-  useEffect(() => {
-    activeBrandingHooks += 1;
-
-    return () => {
-      activeBrandingHooks -= 1;
-      if (activeBrandingHooks === 0) {
-        clearBrandingFromRoot();
-      }
-    };
-  }, []);
 
   // Apply CSS variables and theme mode when branding changes
   useEffect(() => {
