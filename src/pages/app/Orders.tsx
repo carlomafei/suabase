@@ -259,72 +259,68 @@ const Orders = () => {
       </div>
 
       {/* Filters */}
-      <Card className="border-border/50 p-4 mb-6">
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs gap-2 h-9">
-                <CalendarIcon className="h-3.5 w-3.5" />
-                {dateRange?.from ? (
-                  dateRange.to ? (
-                    `${format(dateRange.from, "dd/MM", { locale: ptBR })} - ${format(dateRange.to, "dd/MM", { locale: ptBR })}`
-                  ) : (
-                    format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
-                  )
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-6">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="text-sm gap-2 h-9 w-[160px] justify-start">
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {dateRange?.from ? (
+                dateRange.to ? (
+                  `${format(dateRange.from, "dd/MM", { locale: ptBR })} - ${format(dateRange.to, "dd/MM", { locale: ptBR })}`
                 ) : (
-                  "Período"
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                locale={ptBR}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Select value={filterMarketplace} onValueChange={setFilterMarketplace}>
-            <SelectTrigger className="w-[160px] h-9 text-xs">
-              <SelectValue placeholder="Marketplace" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {MARKETPLACE_OPTIONS.map((mp) => (
-                <SelectItem key={mp} value={mp}>{mp}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[150px] h-9 text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos</SelectItem>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s}>{STATUS_MAP[s]?.label || s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {(dateRange || filterMarketplace !== "all" || filterStatus !== "all") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs text-muted-foreground"
-              onClick={() => { setDateRange(undefined); setFilterMarketplace("all"); setFilterStatus("all"); }}
-            >
-              Limpar filtros
+                  format(dateRange.from, "dd/MM/yyyy", { locale: ptBR })
+                )
+              ) : (
+                "Período"
+              )}
             </Button>
-          )}
-        </div>
-      </Card>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="end">
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              locale={ptBR}
+              numberOfMonths={2}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Select value={filterMarketplace} onValueChange={setFilterMarketplace}>
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue placeholder="Marketplace" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {MARKETPLACE_OPTIONS.map((mp) => (
+              <SelectItem key={mp} value={mp}>{mp}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s}>{STATUS_MAP[s]?.label || s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {(dateRange || filterMarketplace !== "all" || filterStatus !== "all") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-muted-foreground"
+            onClick={() => { setDateRange(undefined); setFilterMarketplace("all"); setFilterStatus("all"); }}
+          >
+            Limpar
+          </Button>
+        )}
+      </div>
 
       {/* Main content: table + detail panel */}
       <div>
