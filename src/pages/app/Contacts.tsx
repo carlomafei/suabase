@@ -155,7 +155,6 @@ const Contacts = () => {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="font-display text-2xl md:text-3xl font-bold">Clientes</h1>
         <p className="text-muted-foreground text-sm mt-1">Base de clientes capturados e enriquecidos</p>
       </div>
 
