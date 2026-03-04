@@ -9,7 +9,6 @@ import {
   MessageCircle,
   Loader2,
   Zap,
-  
   Activity,
   AlertTriangle,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   BarChart,
@@ -69,30 +69,45 @@ const Dashboard = () => {
   const { tenantId, tenantName } = useTenant();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState("30");
+  const [marketplace, setMarketplace] = useState("all");
+  const [status, setStatus] = useState("all");
 
   const fetchDashboard = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
 
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    let startDate: string | null = null;
+    if (period !== "all") {
+      const days = parseInt(period);
+      const start = new Date(now);
+      start.setDate(start.getDate() - days);
+      startDate = start.toISOString();
+    }
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
 
+    let ordersQuery = supabase
+      .from("orders")
+      .select("total_value, marketplace, order_date, status")
+      .eq("tenant_id", tenantId);
+    if (startDate) ordersQuery = ordersQuery.gte("created_at", startDate);
+    if (marketplace !== "all") ordersQuery = ordersQuery.eq("marketplace", marketplace);
+    if (status !== "all") ordersQuery = ordersQuery.eq("status", status);
+
+    let messagesQuery = supabase
+      .from("messages")
+      .select("direction, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("channel", "whatsapp");
+    if (startDate) messagesQuery = messagesQuery.gte("created_at", startDate);
+
     const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, allOrdersRes] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("total_value, marketplace, order_date")
-        .eq("tenant_id", tenantId)
-        .gte("created_at", startOfMonth),
+      ordersQuery,
       supabase
         .from("contacts")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId),
-      supabase
-        .from("messages")
-        .select("direction, created_at")
-        .eq("tenant_id", tenantId)
-        .eq("channel", "whatsapp")
-        .gte("created_at", startOfMonth),
+      messagesQuery,
       supabase
         .from("usage_tracking")
         .select("metric, current_value, limit_value")
@@ -175,7 +190,7 @@ const Dashboard = () => {
 
     setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, monthlyRevenue });
     setLoading(false);
-  }, [tenantId]);
+  }, [tenantId, period, marketplace, status]);
 
   useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
@@ -201,6 +216,49 @@ const Dashboard = () => {
         <p className="text-muted-foreground mt-1">
           Bem-vindo ao painel de {tenantName || "sua empresa"}
         </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+        <Select value={period} onValueChange={setPeriod}>
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">7 dias</SelectItem>
+            <SelectItem value="15">15 dias</SelectItem>
+            <SelectItem value="30">30 dias</SelectItem>
+            <SelectItem value="60">60 dias</SelectItem>
+            <SelectItem value="90">90 dias</SelectItem>
+            <SelectItem value="all">Todos</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={marketplace} onValueChange={setMarketplace}>
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="Shopee">Shopee</SelectItem>
+            <SelectItem value="Mercado Livre">Mercado Livre</SelectItem>
+            <SelectItem value="Amazon">Amazon</SelectItem>
+            <SelectItem value="Magalu">Magalu</SelectItem>
+            <SelectItem value="TikTok">TikTok</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-[130px] h-9 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="completed">Concluído</SelectItem>
+            <SelectItem value="cancelled">Cancelado</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* KPI Cards */}
