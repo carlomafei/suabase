@@ -214,7 +214,7 @@ const Dashboard = () => {
       
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center justify-end gap-3 mb-6">
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-[130px] h-9 text-sm">
             <SelectValue />
