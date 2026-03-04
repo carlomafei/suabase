@@ -1190,7 +1190,7 @@ const Automations = () => {
     const TriggerIcon = triggerInfo?.icon || Zap;
 
     return (
-      <div className="flex flex-col lg:flex-row gap-0 h-[calc(100vh-8rem)]">
+      <div className="flex flex-col lg:flex-row gap-0 h-[calc(100vh-3rem)] -m-4 md:-m-6 lg:-m-8">
         {/* Left sidebar - palette */}
         <div className="w-full lg:w-56 shrink-0 space-y-4 overflow-y-auto p-4 border-r border-border">
           <Input
