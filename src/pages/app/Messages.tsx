@@ -230,9 +230,6 @@ const Messages = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="text-muted-foreground text-sm mt-1">Gerencie mensagens e templates</p>
-      </div>
 
       <Tabs defaultValue="conversations">
         <TabsList className="mb-6">

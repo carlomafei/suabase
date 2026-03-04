@@ -236,7 +236,7 @@ const Orders = () => {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
         <div>
-          <p className="text-muted-foreground text-sm mt-1">Pedidos sincronizados dos marketplaces</p>
+          
         </div>
         <div className="flex items-center gap-2">
           {isBlingOAuthConnected() && (

@@ -1433,7 +1433,7 @@ const Automations = () => {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-muted-foreground text-sm mt-1">Regras automáticas de engajamento</p>
+          
         </div>
         <Button onClick={openCreate} className="gap-2 text-xs">
           <Plus className="h-4 w-4" />

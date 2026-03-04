@@ -206,9 +206,6 @@ const CRM = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="text-muted-foreground text-sm mt-1">Pipeline Kanban — arraste os cards entre as colunas</p>
-      </div>
 
       {/* Summary */}
       <div className="flex gap-4 mb-6 overflow-x-auto pb-2">
