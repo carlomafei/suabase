@@ -68,8 +68,8 @@ const parseLabels = (labels: string): string[] =>
 
 const BRANCH_COLORS = [
   { badge: "bg-primary/15 text-primary", border: "border-primary/40", bg: "bg-primary/5", connector: "bg-primary/40" },
-  { badge: "bg-amber-400/15 text-amber-400", border: "border-amber-400/40", bg: "bg-amber-400/5", connector: "bg-amber-400/40" },
   { badge: "bg-destructive/15 text-destructive", border: "border-destructive/40", bg: "bg-destructive/5", connector: "bg-destructive/40" },
+  { badge: "bg-amber-400/15 text-amber-400", border: "border-amber-400/40", bg: "bg-amber-400/5", connector: "bg-amber-400/40" },
   { badge: "bg-blue-400/15 text-blue-400", border: "border-blue-400/40", bg: "bg-blue-400/5", connector: "bg-blue-400/40" },
 ];
 
