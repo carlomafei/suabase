@@ -493,7 +493,7 @@ const Orders = () => {
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contato (Data Broker)</p>
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Contato</p>
                         </div>
 
                         {contactDetail.whatsapp ? (
