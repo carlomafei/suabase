@@ -74,7 +74,12 @@ function getCachedBranding(): BrandingSettings {
 
 // Read cached branding and apply immediately (before any React render)
 const defaultBranding: BrandingSettings = getCachedBranding();
-applyBrandingToRoot(defaultBranding);
+const hasCachedBranding = (() => {
+  try { return !!localStorage.getItem(BRANDING_CACHE_KEY); } catch { return false; }
+})();
+if (hasCachedBranding) {
+  applyBrandingToRoot(defaultBranding);
+}
 
 function parseBrandingFromData(data: any): BrandingSettings {
   const settings = (data.settings as Record<string, any>) || {};
