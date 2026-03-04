@@ -212,7 +212,6 @@ const Dashboard = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-display text-2xl md:text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
           Bem-vindo ao painel de {tenantName || "sua empresa"}
         </p>
