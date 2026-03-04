@@ -155,7 +155,6 @@ const Contacts = () => {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-muted-foreground text-sm mt-1">Base de clientes capturados e enriquecidos</p>
       </div>
 
       {/* KPI Cards */}

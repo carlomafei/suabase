@@ -6,7 +6,7 @@ import IntegrationSettings from "./IntegrationSettings";
 
 const AppSettings = () => (
   <div>
-    <p className="text-muted-foreground mb-8">Integrações, equipe e preferências</p>
+    
 
     <Tabs defaultValue="plan" className="w-full">
       <TabsList className="mb-6">

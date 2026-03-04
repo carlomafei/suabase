@@ -211,11 +211,7 @@ const Dashboard = () => {
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-muted-foreground mt-1">
-          Bem-vindo ao painel de {tenantName || "sua empresa"}
-        </p>
-      </div>
+      
 
       {/* Filters */}
       <div className="flex flex-wrap items-center justify-center gap-3 mb-6">

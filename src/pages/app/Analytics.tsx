@@ -127,9 +127,6 @@ const Analytics = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <p className="text-muted-foreground text-sm mt-1">Métricas de sentimento, resposta, conversão e performance</p>
-      </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
