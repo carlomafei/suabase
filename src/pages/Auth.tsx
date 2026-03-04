@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Loader2 } from "lucide-react";
 import logoTaqt from "@/assets/logo-taqt.png";
+import logoTaqtDark from "@/assets/logo-taqt-dark.png";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
@@ -59,7 +60,8 @@ const Auth = () => {
         <div className="absolute inset-0 glow-top" />
         <div className="relative z-10 max-w-md px-8">
           <div className="flex items-center gap-2 mb-8">
-            <img src={logoTaqt} alt="Taqt" className="h-8 max-w-[160px] object-contain" />
+            <img src={logoTaqt} alt="Taqt" className="h-8 max-w-[160px] object-contain dark:block hidden" />
+            <img src={logoTaqtDark} alt="Taqt" className="h-8 max-w-[160px] object-contain dark:hidden block" />
           </div>
           <h2 className="font-display text-3xl font-bold mb-4">
             Pare de alugar clientes.{" "}
@@ -75,7 +77,8 @@ const Auth = () => {
       <div className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
-            <img src={logoTaqt} alt="Taqt" className="h-7 max-w-[140px] object-contain" />
+            <img src={logoTaqt} alt="Taqt" className="h-7 max-w-[140px] object-contain dark:block hidden" />
+            <img src={logoTaqtDark} alt="Taqt" className="h-7 max-w-[140px] object-contain dark:hidden block" />
           </div>
 
           <h1 className="font-display text-2xl font-bold mb-2">
