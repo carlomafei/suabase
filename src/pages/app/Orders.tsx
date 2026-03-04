@@ -260,7 +260,7 @@ const Orders = () => {
 
       {/* Filters */}
       <Card className="border-border/50 p-4 mb-6">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
 
           <Popover>
