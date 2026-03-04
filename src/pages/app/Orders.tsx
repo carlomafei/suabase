@@ -234,32 +234,25 @@ const Orders = () => {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-4">
-        <div>
-          
-        </div>
-        <div className="flex items-center gap-2">
-          {isBlingOAuthConnected() && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs"
-              onClick={handleBlingSync}
-              disabled={syncing}
-            >
-              {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-              Sincronizar Bling
-            </Button>
-          )}
-          <Badge variant="secondary" className="w-fit text-xs">
-            <ShoppingBag className="h-3 w-3 mr-1" />
-            {orders.length} pedido{orders.length !== 1 ? "s" : ""}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Filters + Sync + Count */}
       <div className="flex flex-wrap items-center justify-end gap-3 mb-6">
+        {isBlingOAuthConnected() && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-9"
+            onClick={handleBlingSync}
+            disabled={syncing}
+          >
+            {syncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+            Sincronizar Bling
+          </Button>
+        )}
+        <Badge variant="secondary" className="w-fit text-xs h-9 flex items-center">
+          <ShoppingBag className="h-3 w-3 mr-1" />
+          {orders.length} pedido{orders.length !== 1 ? "s" : ""}
+        </Badge>
+        <Separator orientation="vertical" className="h-5 hidden sm:block" />
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="text-sm gap-2 h-9 w-[160px] justify-start">
