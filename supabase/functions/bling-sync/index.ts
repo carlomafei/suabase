@@ -37,7 +37,9 @@ interface BlingOrderDetail {
   itens: Array<{
     descricao: string;
     quantidade: number;
-    valorUnidade: number;
+    valor?: number;
+    valorUnidade?: number;
+    precoTotal?: number;
     produto?: { id: number; nome?: string };
   }>;
   loja?: { id: number; nome?: string };
@@ -189,11 +191,11 @@ async function syncTenant(
     // Rate limiting: small delay between detail API calls
     await delay(150);
 
-    // Extract items from detail
-    const items = (detail?.itens || []).map((item) => ({
+    // Extract items from detail — Bling v3 uses 'valor' for unit price
+    const items = (detail?.itens || []).map((item: any) => ({
       descricao: item.descricao || item.produto?.nome || "Produto sem nome",
       quantidade: item.quantidade || 1,
-      valor: item.valorUnidade || 0,
+      valor: item.valor || item.valorUnidade || item.precoTotal || 0,
     }));
 
     // Map status from Bling to internal
