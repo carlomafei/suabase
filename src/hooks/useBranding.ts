@@ -60,28 +60,32 @@ function getCachedBranding(): BrandingSettings {
     const cached = localStorage.getItem(BRANDING_CACHE_KEY);
     if (cached) return JSON.parse(cached);
   } catch {}
+
+  // Fallback seguro para evitar flash dark no primeiro acesso sem cache.
   return {
     platform_name: "Taqt",
     logo_url: "",
     primary_color: "152 76% 46%",
-    secondary_color: "220 16% 12%",
+    secondary_color: "220 14% 90%",
     footer_text: "",
     hide_platform_branding: false,
     custom_domain: "",
-    theme_mode: "dark",
+    theme_mode: "light",
   };
 }
 
 // Read cached branding and apply immediately (before any React render)
 const defaultBranding: BrandingSettings = getCachedBranding();
 const hasCachedBranding = (() => {
-  try { return !!localStorage.getItem(BRANDING_CACHE_KEY); } catch { return false; }
+  try {
+    return !!localStorage.getItem(BRANDING_CACHE_KEY);
+  } catch {
+    return false;
+  }
 })();
-// Only apply theme from cache if we actually have cached data.
-// For new users with no cache, we wait for DB data to avoid dark→light flash.
-if (hasCachedBranding) {
-  applyBrandingToRoot(defaultBranding);
-}
+
+// Sempre aplica branding inicial imediatamente para evitar qualquer flash de tema padrão.
+applyBrandingToRoot(defaultBranding);
 
 function parseBrandingFromData(data: any): BrandingSettings {
   const settings = (data.settings as Record<string, any>) || {};
