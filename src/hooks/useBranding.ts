@@ -77,6 +77,8 @@ const defaultBranding: BrandingSettings = getCachedBranding();
 const hasCachedBranding = (() => {
   try { return !!localStorage.getItem(BRANDING_CACHE_KEY); } catch { return false; }
 })();
+// Only apply theme from cache if we actually have cached data.
+// For new users with no cache, we wait for DB data to avoid dark→light flash.
 if (hasCachedBranding) {
   applyBrandingToRoot(defaultBranding);
 }
@@ -116,7 +118,7 @@ export const useBranding = () => {
 
   const queryKey = ["branding", tenantId];
 
-  const { data: branding = defaultBranding, isLoading: loading } = useQuery({
+  const { data: branding = defaultBranding, isLoading: loading, isFetched } = useQuery({
     queryKey,
     queryFn: () => fetchBrandingData(tenantId!),
     enabled: !!tenantId,
@@ -124,9 +126,12 @@ export const useBranding = () => {
   });
 
   // Apply CSS variables and theme mode when branding changes
+  // Only apply after real data is fetched (or from cache) to avoid dark→light flash for new users
   useEffect(() => {
-    applyBrandingToRoot(branding);
-  }, [branding.primary_color, branding.secondary_color, branding.theme_mode]);
+    if (isFetched || hasCachedBranding) {
+      applyBrandingToRoot(branding);
+    }
+  }, [branding.primary_color, branding.secondary_color, branding.theme_mode, isFetched]);
 
   const mutation = useMutation({
     mutationFn: async (newBranding: BrandingSettings) => {
