@@ -77,6 +77,8 @@ const defaultBranding: BrandingSettings = getCachedBranding();
 const hasCachedBranding = (() => {
   try { return !!localStorage.getItem(BRANDING_CACHE_KEY); } catch { return false; }
 })();
+// Only apply theme from cache if we actually have cached data.
+// For new users with no cache, we wait for DB data to avoid dark→light flash.
 if (hasCachedBranding) {
   applyBrandingToRoot(defaultBranding);
 }
