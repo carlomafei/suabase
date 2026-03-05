@@ -347,7 +347,7 @@ const Dashboard = () => {
                     paddingAngle={4}
                     dataKey="value"
                     nameKey="name"
-                    label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                     labelLine={false}
                   >
                     {(data?.ordersByMarketplace || []).map((entry, i) => (
