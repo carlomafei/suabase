@@ -104,6 +104,25 @@ const NewOrderTriggerConfigPanel = ({
       </div>
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-5">
+          {/* CPF ou CNPJ */}
+          <div>
+            <Label className="text-xs font-semibold">Tipo de Documento</Label>
+            <Select
+              value={config.doc_type || "all"}
+              onValueChange={(v) => onUpdateConfig({ doc_type: v })}
+            >
+              <SelectTrigger className="h-8 text-xs mt-1">
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos (CPF e CNPJ)</SelectItem>
+                <SelectItem value="cpf">Somente CPF (Pessoa Física)</SelectItem>
+                <SelectItem value="cnpj">Somente CNPJ (Pessoa Jurídica)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground mt-1">Filtre pedidos por tipo de documento do cliente</p>
+          </div>
+
           {/* Valor da Venda */}
           <div>
             <Label className="text-xs font-semibold">Valor da Venda</Label>
