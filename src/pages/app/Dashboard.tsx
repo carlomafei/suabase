@@ -451,10 +451,10 @@ const Dashboard = () => {
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "hsl(220, 18%, 7%)",
-                      border: "1px solid hsl(220, 14%, 14%)",
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
-                      color: "hsl(0, 0%, 95%)",
+                      color: "hsl(var(--card-foreground))",
                       fontSize: "12px",
                     }}
                   />
