@@ -177,6 +177,11 @@ const Dashboard = () => {
       }
     });
 
+    const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
+    const totalOrders = orders.length;
+    const avgTicket = totalOrders > 0 ? revenue / totalOrders : 0;
+    const estimatedPotential = totalContacts * avgTicket * 0.15;
+
     let activeContacts = 0;
     let vipContacts = 0;
     let atRiskContacts = 0;
@@ -188,28 +193,19 @@ const Dashboard = () => {
         inactiveContacts++;
         return;
       }
-      // VIP: 3+ orders or total > avgTicket * 5
       if (activity.orderCount >= 3 || activity.totalValue > (avgTicket || 100) * 5) {
         vipContacts++;
       }
-      // At risk: last order between 30-90 days ago
       if (activity.lastOrder < thirtyDaysAgo && activity.lastOrder >= ninetyDaysAgo) {
         atRiskContacts++;
       }
-      // Inactive: last order > 90 days ago
       if (activity.lastOrder < ninetyDaysAgo) {
         inactiveContacts++;
       }
-      // Active: last order within 30 days
       if (activity.lastOrder >= thirtyDaysAgo) {
         activeContacts++;
       }
     });
-
-    const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
-    const totalOrders = orders.length;
-    const avgTicket = totalOrders > 0 ? revenue / totalOrders : 0;
-    const estimatedPotential = totalContacts * avgTicket * 0.15;
 
     // Orders by marketplace
     const marketplaceMap: Record<string, number> = {};
