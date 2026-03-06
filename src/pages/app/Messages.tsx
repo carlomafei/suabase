@@ -222,6 +222,24 @@ const Messages = () => {
     fetchData();
   };
 
+  const openEditTemplate = (t: Template) => {
+    setEditForm({ name: t.name, content: t.content, category: t.category || "marketing", variables: (t.variables || []).join(", ") });
+    setEditingTemplate(t);
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!tenantId || !editingTemplate || !editForm.name || !editForm.content) { toast.error("Preencha nome e conteúdo"); return; }
+    setSaving(true);
+    const vars = editForm.variables.split(",").map((v) => v.trim()).filter(Boolean);
+    const { error } = await supabase.from("whatsapp_templates").update({
+      name: editForm.name, content: editForm.content,
+      category: editForm.category, variables: vars.length > 0 ? vars : null,
+    }).eq("id", editingTemplate.id);
+    setSaving(false);
+    if (error) toast.error("Erro ao atualizar template");
+    else { toast.success("Template atualizado!"); setEditingTemplate(null); fetchData(); }
+  };
+
   const renderPreviewContent = (template: Template) => {
     let content = template.content;
     (template.variables || []).forEach((v) => { content = content.replace(`{{${v}}}`, `[${v}]`); });
