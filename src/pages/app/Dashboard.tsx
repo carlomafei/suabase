@@ -45,8 +45,11 @@ interface DashboardData {
   usage: { metric: string; current_value: number; limit_value: number | null }[];
   pendingJobs: number;
   failedJobs: number;
-  
   monthlyRevenue: { name: string; faturamento: number }[];
+  activeContacts: number;
+  vipContacts: number;
+  atRiskContacts: number;
+  inactiveContacts: number;
 }
 
 const MARKETPLACE_COLORS: Record<string, string> = {
