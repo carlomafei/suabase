@@ -11,6 +11,10 @@ import {
   Zap,
   Activity,
   AlertTriangle,
+  Crown,
+  UserCheck,
+  UserX,
+  UserMinus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,8 +49,11 @@ interface DashboardData {
   usage: { metric: string; current_value: number; limit_value: number | null }[];
   pendingJobs: number;
   failedJobs: number;
-  
   monthlyRevenue: { name: string; faturamento: number }[];
+  activeContacts: number;
+  vipContacts: number;
+  atRiskContacts: number;
+  inactiveContacts: number;
 }
 
 const MARKETPLACE_COLORS: Record<string, string> = {
@@ -101,7 +108,7 @@ const Dashboard = () => {
       .eq("channel", "whatsapp");
     if (startDate) messagesQuery = messagesQuery.gte("created_at", startDate);
 
-    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, allOrdersRes] = await Promise.all([
+    const [ordersRes, contactsRes, messagesRes, usageRes, jobsRes, allOrdersRes, contactsFullRes] = await Promise.all([
       ordersQuery,
       supabase
         .from("contacts")
@@ -122,6 +129,10 @@ const Dashboard = () => {
         .select("total_value, order_date, created_at")
         .eq("tenant_id", tenantId)
         .gte("created_at", sixMonthsAgo),
+      supabase
+        .from("contacts")
+        .select("id, quality_score, updated_at")
+        .eq("tenant_id", tenantId),
     ]);
 
     const orders = ordersRes.data || [];
@@ -132,12 +143,69 @@ const Dashboard = () => {
     const jobs = jobsRes.data || [];
     const pendingJobs = jobs.filter((j: any) => j.status === "pending").length;
     const failedJobs = jobs.filter((j: any) => j.status === "failed").length;
-    
+
+    // Contact segmentation
+    const contactsFull = contactsFullRes.data || [];
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const ninetyDaysAgo = new Date(now);
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    // Build set of contact IDs with recent orders
+    const contactOrderMap: Record<string, { count: number; lastDate: Date }> = {};
+    allOrders.forEach((o: any) => {
+      // we don't have contact_id in allOrders query, use orders instead
+    });
+    // Re-query orders with contact_id for segmentation
+    const recentOrdersRes = await supabase
+      .from("orders")
+      .select("contact_id, order_date, created_at, total_value")
+      .eq("tenant_id", tenantId)
+      .not("contact_id", "is", null);
+    const recentOrders = recentOrdersRes.data || [];
+    const contactActivity: Record<string, { orderCount: number; totalValue: number; lastOrder: Date }> = {};
+    recentOrders.forEach((o: any) => {
+      if (!o.contact_id) return;
+      const d = new Date(o.order_date || o.created_at);
+      if (!contactActivity[o.contact_id]) {
+        contactActivity[o.contact_id] = { orderCount: 0, totalValue: 0, lastOrder: d };
+      }
+      contactActivity[o.contact_id].orderCount++;
+      contactActivity[o.contact_id].totalValue += Number(o.total_value || 0);
+      if (d > contactActivity[o.contact_id].lastOrder) {
+        contactActivity[o.contact_id].lastOrder = d;
+      }
+    });
 
     const revenue = orders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
     const totalOrders = orders.length;
     const avgTicket = totalOrders > 0 ? revenue / totalOrders : 0;
     const estimatedPotential = totalContacts * avgTicket * 0.15;
+
+    let activeContacts = 0;
+    let vipContacts = 0;
+    let atRiskContacts = 0;
+    let inactiveContacts = 0;
+
+    contactsFull.forEach((c: any) => {
+      const activity = contactActivity[c.id];
+      if (!activity) {
+        inactiveContacts++;
+        return;
+      }
+      if (activity.orderCount >= 3 || activity.totalValue > (avgTicket || 100) * 5) {
+        vipContacts++;
+      }
+      if (activity.lastOrder < thirtyDaysAgo && activity.lastOrder >= ninetyDaysAgo) {
+        atRiskContacts++;
+      }
+      if (activity.lastOrder < ninetyDaysAgo) {
+        inactiveContacts++;
+      }
+      if (activity.lastOrder >= thirtyDaysAgo) {
+        activeContacts++;
+      }
+    });
 
     // Orders by marketplace
     const marketplaceMap: Record<string, number> = {};
@@ -188,7 +256,7 @@ const Dashboard = () => {
     });
     const monthlyRevenue = Object.entries(monthlyMap).map(([name, faturamento]) => ({ name, faturamento }));
 
-    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, monthlyRevenue });
+    setData({ revenue, totalContacts, totalOrders, avgTicket, estimatedPotential, ordersByMarketplace, whatsappEngagement, usage, pendingJobs, failedJobs, monthlyRevenue, activeContacts, vipContacts, atRiskContacts, inactiveContacts });
     setLoading(false);
   }, [tenantId, period, marketplace, status]);
 
@@ -270,6 +338,27 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+
+      {/* Contact Segmentation Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: "Ativos", value: data?.activeContacts ?? 0, icon: UserCheck, color: "text-primary" },
+          { label: "VIP", value: data?.vipContacts ?? 0, icon: Crown, color: "text-amber-400" },
+          { label: "Em Risco", value: data?.atRiskContacts ?? 0, icon: AlertTriangle, color: "text-orange-400" },
+          { label: "Inativos", value: data?.inactiveContacts ?? 0, icon: UserMinus, color: "text-red-400" },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <Card key={label} className="border-border/50">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <Icon className={`h-4 w-4 ${color}`} />
+              </div>
+              <p className="font-display text-2xl font-bold">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
 
       {/* Monthly Revenue Chart */}
       <Card className="border-border/50 mb-6">
