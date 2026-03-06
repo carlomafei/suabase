@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle, Send, Plus, Loader2, Eye, FileText, Clock,
-  CheckCircle, CheckCheck, Reply, Search, Trash2,
+  CheckCircle, CheckCheck, Reply, Search, Trash2, Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -91,7 +91,9 @@ const Messages = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [showPreview, setShowPreview] = useState<Template | null>(null);
   const [showSend, setShowSend] = useState<Template | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: "", content: "", category: "marketing", variables: "" });
+  const [editForm, setEditForm] = useState({ name: "", content: "", category: "marketing", variables: "" });
   const [saving, setSaving] = useState(false);
   const [contacts, setContacts] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
   const [selectedContact, setSelectedContact] = useState("");
@@ -218,6 +220,24 @@ const Messages = () => {
     await supabase.from("whatsapp_templates").delete().eq("id", id);
     toast.success("Template removido");
     fetchData();
+  };
+
+  const openEditTemplate = (t: Template) => {
+    setEditForm({ name: t.name, content: t.content, category: t.category || "marketing", variables: (t.variables || []).join(", ") });
+    setEditingTemplate(t);
+  };
+
+  const handleUpdateTemplate = async () => {
+    if (!tenantId || !editingTemplate || !editForm.name || !editForm.content) { toast.error("Preencha nome e conteúdo"); return; }
+    setSaving(true);
+    const vars = editForm.variables.split(",").map((v) => v.trim()).filter(Boolean);
+    const { error } = await supabase.from("whatsapp_templates").update({
+      name: editForm.name, content: editForm.content,
+      category: editForm.category, variables: vars.length > 0 ? vars : null,
+    }).eq("id", editingTemplate.id);
+    setSaving(false);
+    if (error) toast.error("Erro ao atualizar template");
+    else { toast.success("Template atualizado!"); setEditingTemplate(null); fetchData(); }
   };
 
   const renderPreviewContent = (template: Template) => {
@@ -425,6 +445,9 @@ const Messages = () => {
                       <Button size="sm" className="text-xs flex-1 gap-1" onClick={() => setShowSend(t)}>
                         <Send className="h-3 w-3" /> Enviar
                       </Button>
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => openEditTemplate(t)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" className="text-xs text-destructive" onClick={() => deleteTemplate(t.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
@@ -529,6 +552,48 @@ const Messages = () => {
             <Button onClick={handleSendManual} disabled={saving} className="gap-1">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               Enviar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Edit Template Dialog ── */}
+      <Dialog open={!!editingTemplate} onOpenChange={() => setEditingTemplate(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Editar Template</DialogTitle>
+            <DialogDescription>Edite o template de mensagem WhatsApp.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nome</Label>
+              <Input placeholder="ex: boas_vindas" value={editForm.name} onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Categoria</Label>
+              <Select value={editForm.category} onValueChange={(v) => setEditForm((p) => ({ ...p, category: v }))}>
+                <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="utility">Utilidade</SelectItem>
+                  <SelectItem value="authentication">Autenticação</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Conteúdo</Label>
+              <Textarea placeholder="Olá {{nome}}, obrigado pela compra!" value={editForm.content} onChange={(e) => setEditForm((p) => ({ ...p, content: e.target.value }))} rows={4} className="text-sm" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Variáveis (separadas por vírgula)</Label>
+              <Input placeholder="nome, produto, valor" value={editForm.variables} onChange={(e) => setEditForm((p) => ({ ...p, variables: e.target.value }))} className="text-sm" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingTemplate(null)}>Cancelar</Button>
+            <Button onClick={handleUpdateTemplate} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
