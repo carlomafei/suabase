@@ -167,7 +167,7 @@ const Analytics = () => {
                       cy="50%"
                       innerRadius={60}
                       outerRadius={100}
-                      paddingAngle={4}
+                      paddingAngle={0}
                       dataKey="value"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       labelLine={false}
