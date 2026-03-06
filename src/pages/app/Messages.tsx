@@ -445,6 +445,9 @@ const Messages = () => {
                       <Button size="sm" className="text-xs flex-1 gap-1" onClick={() => setShowSend(t)}>
                         <Send className="h-3 w-3" /> Enviar
                       </Button>
+                      <Button size="sm" variant="ghost" className="text-xs" onClick={() => openEditTemplate(t)}>
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="sm" variant="ghost" className="text-xs text-destructive" onClick={() => deleteTemplate(t.id)}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
