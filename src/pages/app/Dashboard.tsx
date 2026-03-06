@@ -325,7 +325,7 @@ const Dashboard = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-4 mb-8">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <Card key={label} className="border-border/50">
             <CardContent className="p-5">
