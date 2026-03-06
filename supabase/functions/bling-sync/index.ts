@@ -231,17 +231,27 @@ async function syncTenant(
           // Extrair endereço do cadastro
           const end = (blingContact as any).endereco;
           if (end) {
+            // Bling v3 may nest address fields under endereco.geral
+            const geral = end.geral || {};
+            const pickField = (field: string) => {
+              // Direct field first, then geral, handle objects
+              const direct = end[field];
+              if (typeof direct === 'string' && direct) return direct;
+              const fromGeral = geral[field];
+              if (typeof fromGeral === 'string' && fromGeral) return fromGeral;
+              return "";
+            };
             const rua = typeof end.endereco === 'string'
               ? end.endereco
-              : (typeof end.endereco === 'object' && end.endereco?.endereco ? String(end.endereco.endereco) : (end.geral?.endereco || ""));
+              : (typeof end.endereco === 'object' && end.endereco?.endereco ? String(end.endereco.endereco) : (geral.endereco || ""));
             blingEndereco = {
               endereco: rua,
-              numero: end.numero || "",
-              complemento: end.complemento || "",
-              bairro: end.bairro || "",
-              cep: end.cep || "",
-              municipio: end.municipio || "",
-              uf: end.uf || "",
+              numero: pickField("numero"),
+              complemento: pickField("complemento"),
+              bairro: pickField("bairro"),
+              cep: pickField("cep"),
+              municipio: pickField("municipio") || pickField("cidade"),
+              uf: pickField("uf"),
             };
           }
           console.log(`bling-sync: contact ${blingContactId} enriched from registry — cpf: ${cpf ? "yes" : "no"}, email: ${email ? "yes" : "no"}, phone: ${phone ? "yes" : "no"}, endereco: ${blingEndereco ? "yes" : "no"}`);
