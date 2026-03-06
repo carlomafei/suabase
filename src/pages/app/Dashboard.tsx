@@ -397,6 +397,7 @@ const Dashboard = () => {
                     borderRadius: "8px",
                     color: "hsl(var(--foreground))",
                     fontSize: "12px",
+                    fontWeight: "600",
                   }}
                   formatter={(value: number) => [formatCurrency(value), "Faturamento"]}
                 />
@@ -456,6 +457,7 @@ const Dashboard = () => {
                       borderRadius: "8px",
                       color: "hsl(var(--card-foreground))",
                       fontSize: "12px",
+                      fontWeight: "600",
                     }}
                   />
                 </PieChart>
@@ -495,6 +497,7 @@ const Dashboard = () => {
                       borderRadius: "8px",
                       color: "hsl(var(--foreground))",
                       fontSize: "12px",
+                      fontWeight: "600",
                     }}
                   />
                   <Legend
