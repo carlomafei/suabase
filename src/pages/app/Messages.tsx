@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   MessageCircle, Send, Plus, Loader2, Eye, FileText, Clock,
-  CheckCircle, CheckCheck, Reply, Search, Trash2,
+  CheckCircle, CheckCheck, Reply, Search, Trash2, Pencil,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
