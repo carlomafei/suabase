@@ -340,7 +340,7 @@ const Dashboard = () => {
       </div>
 
       {/* Contact Segmentation Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-2 gap-y-4 mb-8">
         {[
           { label: "Ativos", value: data?.activeContacts ?? 0, icon: UserCheck, color: "text-primary" },
           { label: "VIP", value: data?.vipContacts ?? 0, icon: Crown, color: "text-amber-400" },
