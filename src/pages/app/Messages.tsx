@@ -91,7 +91,9 @@ const Messages = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [showPreview, setShowPreview] = useState<Template | null>(null);
   const [showSend, setShowSend] = useState<Template | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [newTemplate, setNewTemplate] = useState({ name: "", content: "", category: "marketing", variables: "" });
+  const [editForm, setEditForm] = useState({ name: "", content: "", category: "marketing", variables: "" });
   const [saving, setSaving] = useState(false);
   const [contacts, setContacts] = useState<{ id: string; name: string; whatsapp: string }[]>([]);
   const [selectedContact, setSelectedContact] = useState("");
