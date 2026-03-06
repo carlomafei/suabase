@@ -328,8 +328,8 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
         {stats.map(({ label, value, icon: Icon, color }) => (
           <Card key={label} className="border-border/50">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
+            <CardContent className="p-4 pb-3">
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
@@ -348,8 +348,8 @@ const Dashboard = () => {
           { label: "Inativos", value: data?.inactiveContacts ?? 0, icon: UserMinus, color: "text-red-400" },
         ].map(({ label, value, icon: Icon, color }) => (
           <Card key={label} className="border-border/50">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
+            <CardContent className="p-4 pb-3">
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
