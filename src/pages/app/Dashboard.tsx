@@ -333,7 +333,7 @@ const Dashboard = () => {
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
-              <p className="font-display text-2xl font-bold">{value}</p>
+              <p className="font-display text-2xl font-extrabold">{value}</p>
             </CardContent>
           </Card>
         ))}
@@ -353,7 +353,7 @@ const Dashboard = () => {
                 <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
-              <p className="font-display text-2xl font-bold">{value}</p>
+              <p className="font-display text-2xl font-extrabold">{value}</p>
             </CardContent>
           </Card>
         ))}
