@@ -24,8 +24,9 @@ const TOOLTIP_STYLE = {
   backgroundColor: "hsl(var(--card))",
   border: "1px solid hsl(var(--border))",
   borderRadius: "8px",
-  color: "hsl(0, 0%, 95%)",
+  color: "hsl(var(--card-foreground))",
   fontSize: "12px",
+  fontWeight: "600",
 };
 
 const Analytics = () => {
