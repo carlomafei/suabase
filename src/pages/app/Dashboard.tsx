@@ -330,7 +330,7 @@ const Dashboard = () => {
           <Card key={label} className="border-border/50">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
               <p className="font-display text-2xl font-bold">{value}</p>
@@ -350,7 +350,7 @@ const Dashboard = () => {
           <Card key={label} className="border-border/50">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className="text-xs text-muted-foreground">{label}</span>
                 <Icon className={`h-4 w-4 ${color}`} />
               </div>
               <p className="font-display text-2xl font-bold">{value}</p>
