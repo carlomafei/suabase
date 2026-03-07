@@ -258,11 +258,11 @@ const CRM = () => {
               {/* Stage total value */}
               <div className="mt-1.5">
                 <div
-                  className="flex items-center justify-center gap-8 px-4 py-1 text-[10px] font-semibold"
+                  className="relative flex items-center justify-center gap-8 px-4 py-1 text-[10px] font-semibold"
                   style={{ backgroundColor: `${stage.color}18` }}
                 >
                   <span className="uppercase tracking-wider whitespace-nowrap" style={{ color: stage.color }}>Valor da Compra</span>
-                  <span className="leading-none" style={{ color: stage.color }}>|</span>
+                  <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 leading-none" style={{ color: stage.color }}>|</span>
                   <span style={{ color: stage.color }}>
                     {formatCurrency(stageDeals.reduce((s, d) => s + Number(d.value || 0), 0))}
                   </span>
