@@ -218,7 +218,7 @@ const CRM = () => {
           placeholder="Buscar por nome, CPF, email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 h-10 rounded-full border-border bg-background"
+          className="pl-9 h-10 rounded-md border-border bg-background"
         />
       </div>
 
