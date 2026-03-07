@@ -256,6 +256,7 @@ const CRM = () => {
               </div>
 
               {/* Stage total value */}
+              <div className="px-2 pt-1.5">
               <div
                 className="flex items-center justify-between px-3 py-1 text-[10px] font-semibold border-b border-border/30"
                 style={{ backgroundColor: `${stage.color}18` }}
