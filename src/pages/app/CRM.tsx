@@ -260,7 +260,7 @@ const CRM = () => {
                 className="flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold border-b border-border/30"
                 style={{ backgroundColor: `${stage.color}18` }}
               >
-                <span className="uppercase tracking-wider" style={{ color: stage.color }}>Valor do Título</span>
+                <span className="uppercase tracking-wider" style={{ color: stage.color }}>Valor da Compra</span>
                 <span style={{ color: stage.color }}>
                   {formatCurrency(stageDeals.reduce((s, d) => s + Number(d.value || 0), 0))}
                 </span>
