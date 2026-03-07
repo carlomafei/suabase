@@ -227,6 +227,63 @@ const CRM = () => {
     }
   };
 
+  const handleDeleteStage = async (stageId: string) => {
+    const stageDealsCount = deals.filter((d) => d.stage_id === stageId).length;
+    if (stageDealsCount > 0) {
+      toast.error("Remova ou mova os cards antes de excluir a fase");
+      return;
+    }
+    setStages((prev) => prev.filter((s) => s.id !== stageId));
+    const { error } = await supabase.from("crm_stages").delete().eq("id", stageId);
+    if (error) { toast.error("Erro ao excluir fase"); fetchData(); }
+    else toast.success("Fase excluída");
+  };
+
+  const handleMoveStage = async (stageId: string, direction: "left" | "right") => {
+    const idx = stages.findIndex((s) => s.id === stageId);
+    const swapIdx = direction === "left" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= stages.length) return;
+    const updated = [...stages];
+    [updated[idx], updated[swapIdx]] = [updated[swapIdx], updated[idx]];
+    updated[idx].position = idx;
+    updated[swapIdx].position = swapIdx;
+    setStages(updated);
+    await Promise.all([
+      supabase.from("crm_stages").update({ position: idx }).eq("id", updated[idx].id),
+      supabase.from("crm_stages").update({ position: swapIdx }).eq("id", updated[swapIdx].id),
+    ]);
+    toast.success("Fase movida");
+  };
+
+  const handleSortCards = (stageId: string, order: "asc" | "desc") => {
+    setDeals((prev) => {
+      const others = prev.filter((d) => d.stage_id !== stageId);
+      const stageCards = prev.filter((d) => d.stage_id === stageId)
+        .sort((a, b) => order === "asc" ? a.value - b.value : b.value - a.value)
+        .map((d, i) => ({ ...d, position: i }));
+      return [...others, ...stageCards];
+    });
+    toast.success("Cards ordenados");
+  };
+
+  const handleCreateStage = async (afterPosition: number) => {
+    if (!tenantId) return;
+    const pipelineRes = await supabase.from("crm_pipelines").select("id").eq("tenant_id", tenantId).limit(1).single();
+    if (!pipelineRes.data) { toast.error("Pipeline não encontrado"); return; }
+    const newPos = afterPosition + 1;
+    // Shift existing stages
+    await supabase.from("crm_stages").update({ position: newPos }).gte("position", newPos).eq("tenant_id", tenantId);
+    const { error } = await supabase.from("crm_stages").insert({
+      name: "Nova fase",
+      position: newPos,
+      color: "#64748b",
+      tenant_id: tenantId,
+      pipeline_id: pipelineRes.data.id,
+    });
+    if (error) toast.error("Erro ao criar fase");
+    else { toast.success("Nova fase criada"); fetchData(); }
+  };
+
   const handleDragStart = (deal: Deal) => {
     setDraggedDeal(deal);
   };
