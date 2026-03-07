@@ -287,7 +287,19 @@ const CRM = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <p className="text-sm font-medium truncate">{deal.contact_name || deal.title}</p>
+                          <p className="text-sm font-medium truncate flex-1">{deal.contact_name || deal.title}</p>
+                          {deal.contact_whatsapp && (
+                            <a
+                              href={`https://wa.me/${deal.contact_whatsapp.replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1 rounded-md hover:bg-green-500/10 text-green-600 transition-colors shrink-0"
+                              title="Abrir WhatsApp"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </a>
+                          )}
                         </div>
                         {deal.contact_cpf_cnpj ? (
                           <p className="text-[10px] text-muted-foreground truncate mt-0.5">{formatCpf(deal.contact_cpf_cnpj)}</p>
@@ -300,20 +312,6 @@ const CRM = () => {
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">Valor da Compra</span>
                           </div>
                           <span className="text-xs font-semibold text-primary">{formatCurrency(deal.value)}</span>
-                        </div>
-                        <div className="flex items-center justify-end mt-1">
-                          {deal.contact_whatsapp && (
-                            <a
-                              href={`https://wa.me/${deal.contact_whatsapp.replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1 rounded-md hover:bg-green-500/10 text-green-600 transition-colors"
-                              title="Abrir WhatsApp"
-                            >
-                              <MessageCircle className="h-3.5 w-3.5" />
-                            </a>
-                          )}
                         </div>
                       </div>
                     </div>
