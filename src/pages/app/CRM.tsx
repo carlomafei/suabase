@@ -255,6 +255,17 @@ const CRM = () => {
                 <StageSettingsPopover stage={stage} onSave={handleStageUpdate} />
               </div>
 
+              {/* Stage total value */}
+              <div
+                className="flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold border-b border-border/30"
+                style={{ backgroundColor: `${stage.color}18` }}
+              >
+                <span className="uppercase tracking-wider" style={{ color: stage.color }}>Valor do Título</span>
+                <span style={{ color: stage.color }}>
+                  {formatCurrency(stageDeals.reduce((s, d) => s + Number(d.value || 0), 0))}
+                </span>
+              </div>
+
               {/* Cards */}
               <div className="flex-1 p-2 space-y-2 overflow-y-auto">
                 {stageDeals.map((deal) => (
