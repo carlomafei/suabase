@@ -263,7 +263,7 @@ const CRM = () => {
                 >
                   <span className="uppercase tracking-wider whitespace-nowrap mr-auto" style={{ color: stage.color }}>Valor da Compra</span>
                   <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 leading-none" style={{ color: stage.color }}>|</span>
-                  <span style={{ color: stage.color }}>
+                  <span className="mr-auto" style={{ color: stage.color }}>
                     {formatCurrency(stageDeals.reduce((s, d) => s + Number(d.value || 0), 0))}
                   </span>
                 </div>
