@@ -258,7 +258,7 @@ const CRM = () => {
               {/* Stage total value */}
               <div className="mt-1.5">
                 <div
-                  className="flex items-center justify-center gap-6 px-4 py-1 text-[10px] font-semibold"
+                  className="flex items-center justify-center gap-4 px-4 py-1 text-[10px] font-semibold"
                   style={{ backgroundColor: `${stage.color}18` }}
                 >
                   <span className="uppercase tracking-wider" style={{ color: stage.color }}>Valor da Compra</span>
@@ -293,7 +293,7 @@ const CRM = () => {
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
                         )}
                         <div className="mt-1.5">
-                          <div className="flex items-center gap-1 mb-1">
+                          <div className="flex items-center gap-1 mb-0">
                             <ShoppingCart className="h-3 w-3 text-muted-foreground" />
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">Valor da Compra</span>
                           </div>
