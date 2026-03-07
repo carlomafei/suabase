@@ -217,7 +217,8 @@ const Orders = () => {
   const handleWhatsApp = (whatsapp: string | null) => {
     if (!whatsapp) return;
     const num = whatsapp.replace(/\D/g, "");
-    window.open(`https://wa.me/${num}`, "_blank");
+    const fullNum = num.startsWith("55") ? num : `55${num}`;
+    window.open(`https://api.whatsapp.com/send?phone=${fullNum}`, "_blank");
   };
 
   const endereco = contactDetail?.metadata?.endereco;
