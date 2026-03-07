@@ -275,7 +275,7 @@ const CRM = () => {
                           <p className="text-sm font-medium truncate">{deal.contact_name || deal.title}</p>
                         </div>
                         {deal.contact_cpf_cnpj ? (
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{formatCpf(deal.contact_cpf_cnpj)}</p>
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">{formatCpf(deal.contact_cpf_cnpj)}</p>
                         ) : (
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
                         )}
