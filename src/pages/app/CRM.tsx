@@ -210,21 +210,6 @@ const CRM = () => {
   return (
     <div>
 
-      {/* Summary */}
-      <div className="flex gap-4 mb-6 overflow-x-auto pb-2">
-        {stages.map((stage) => {
-          const stageDeals = deals.filter((d) => d.stage_id === stage.id);
-          const totalValue = stageDeals.reduce((s, d) => s + Number(d.value || 0), 0);
-          return (
-            <div key={stage.id} className="flex items-center gap-2 shrink-0">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-              <span className="text-xs text-muted-foreground">{stage.name}</span>
-              <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
-              <span className="text-xs text-muted-foreground">{formatCurrency(totalValue)}</span>
-            </div>
-          );
-        })}
-      </div>
 
       {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
