@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatCpf } from "@/lib/business-rules";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -32,6 +33,7 @@ interface Deal {
   contact_id: string | null;
   contact_name?: string;
   contact_whatsapp?: string;
+  contact_cpf_cnpj?: string;
 }
 
 const formatCurrency = (v: number) =>
@@ -109,7 +111,7 @@ const CRM = () => {
         .order("position"),
       supabase
         .from("crm_deals")
-        .select("id, title, value, position, stage_id, contact_id, contacts(name, whatsapp)")
+        .select("id, title, value, position, stage_id, contact_id, contacts(name, whatsapp, cpf_cnpj)")
         .eq("tenant_id", tenantId)
         .order("position"),
     ]);
@@ -125,6 +127,7 @@ const CRM = () => {
         contact_id: d.contact_id,
         contact_name: d.contacts?.name,
         contact_whatsapp: d.contacts?.whatsapp,
+        contact_cpf_cnpj: d.contacts?.cpf_cnpj,
       }))
     );
     setLoading(false);
@@ -271,7 +274,11 @@ const CRM = () => {
                           <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <p className="text-sm font-medium truncate">{deal.contact_name || deal.title}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
+                        {deal.contact_cpf_cnpj ? (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{formatCpf(deal.contact_cpf_cnpj)}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
+                        )}
                         <div className="flex items-center justify-between mt-1.5">
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-3 w-3 text-primary" />
