@@ -279,11 +279,14 @@ const CRM = () => {
                         ) : (
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
                         )}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3 w-3 text-primary" />
-                            <span className="text-xs font-medium text-primary">{formatCurrency(deal.value)}</span>
+                        <div className="mt-1.5">
+                          <div className="flex items-center gap-1 mb-0.5">
+                            <ShoppingCart className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Valor da Compra</span>
                           </div>
+                          <span className="text-xs font-semibold text-primary">{formatCurrency(deal.value)}</span>
+                        </div>
+                        <div className="flex items-center justify-end mt-1">
                           {deal.contact_whatsapp && (
                             <a
                               href={`https://wa.me/${deal.contact_whatsapp.replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
