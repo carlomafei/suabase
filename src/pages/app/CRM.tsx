@@ -98,6 +98,7 @@ const CRM = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
