@@ -247,7 +247,7 @@ const CRM = () => {
               {/* Column header */}
               <div
                 className="flex items-center gap-2 p-3 border-b border-border/50 rounded-t-xl"
-                style={{ backgroundColor: stage.color + "18" }}
+                style={{ backgroundColor: stage.color }}
               >
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                 <span className="font-display font-semibold text-sm flex-1">{stage.name}</span>
