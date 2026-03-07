@@ -109,7 +109,7 @@ const CRM = () => {
         .order("position"),
       supabase
         .from("crm_deals")
-        .select("id, title, value, position, stage_id, contact_id, contacts(name, whatsapp)")
+        .select("id, title, value, position, stage_id, contact_id, contacts(name, whatsapp, cpf_cnpj)")
         .eq("tenant_id", tenantId)
         .order("position"),
     ]);
@@ -271,7 +271,11 @@ const CRM = () => {
                           <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <p className="text-sm font-medium truncate">{deal.contact_name || deal.title}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
+                        {deal.contact_cpf_cnpj ? (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{formatCpf(deal.contact_cpf_cnpj)}</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
+                        )}
                         <div className="flex items-center justify-between mt-1.5">
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-3 w-3 text-primary" />
