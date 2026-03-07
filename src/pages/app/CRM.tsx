@@ -258,7 +258,7 @@ const CRM = () => {
               {/* Stage total value */}
               <div className="mt-1.5">
                 <div
-                  className="flex items-center justify-center gap-8 px-4 py-1 text-[10px] font-semibold"
+                  className="flex items-center justify-center gap-12 px-4 py-1 text-[10px] font-semibold"
                   style={{ backgroundColor: `${stage.color}18` }}
                 >
                   <span className="uppercase tracking-wider" style={{ color: stage.color }}>Valor da Compra</span>
