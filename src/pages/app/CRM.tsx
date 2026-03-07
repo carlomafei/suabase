@@ -284,7 +284,7 @@ const CRM = () => {
                             <ShoppingCart className="h-3 w-3 text-muted-foreground" />
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">Valor da Compra</span>
                           </div>
-                          <span className="text-xs font-semibold text-muted-foreground/80">{formatCurrency(deal.value)}</span>
+                          <span className="text-xs font-semibold text-primary">{formatCurrency(deal.value)}</span>
                         </div>
                         <div className="flex items-center justify-end mt-1">
                           {deal.contact_whatsapp && (
