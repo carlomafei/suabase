@@ -211,8 +211,17 @@ const CRM = () => {
   return (
     <div>
 
+      {/* Search */}
+      <div className="relative max-w-md mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, CPF, email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9 h-10 rounded-full border-border bg-background"
+        />
+      </div>
 
-      {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
         {stages.map((stage) => {
           const stageDeals = deals
