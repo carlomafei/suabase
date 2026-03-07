@@ -263,7 +263,7 @@ const CRM = () => {
                     draggable
                     onDragStart={() => handleDragStart(deal)}
                     className={cn(
-                      "p-3 cursor-grab active:cursor-grabbing border-border/50 hover:border-primary/30 transition-all bg-muted/30",
+                      "p-3 cursor-grab active:cursor-grabbing border-border/50 hover:border-primary/30 transition-all",
                       draggedDeal?.id === deal.id && "opacity-40 scale-95"
                     )}
                   >
@@ -282,7 +282,7 @@ const CRM = () => {
                         <div className="mt-1.5">
                           <div className="flex items-center gap-1 mb-0.5">
                             <ShoppingCart className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">Valor da Compra</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Valor da Compra</span>
                           </div>
                           <span className="text-xs font-semibold text-primary">{formatCurrency(deal.value)}</span>
                         </div>
