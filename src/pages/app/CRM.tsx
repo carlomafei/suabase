@@ -224,8 +224,14 @@ const CRM = () => {
 
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
         {stages.map((stage) => {
+          const searchLower = searchTerm.toLowerCase();
           const stageDeals = deals
             .filter((d) => d.stage_id === stage.id)
+            .filter((d) => !searchTerm || 
+              (d.contact_name?.toLowerCase().includes(searchLower)) ||
+              (d.contact_cpf_cnpj?.includes(searchTerm)) ||
+              (d.title?.toLowerCase().includes(searchLower))
+            )
             .sort((a, b) => a.position - b.position);
 
           return (
