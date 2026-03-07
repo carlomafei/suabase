@@ -281,7 +281,7 @@ const CRM = () => {
                           </div>
                           {deal.contact_whatsapp && (
                             <a
-                              href={`https://api.whatsapp.com/send?phone=${deal.contact_whatsapp.replace(/\D/g, "").replace(/^(?!55)/, "55")}`}
+                              href={`https://api.whatsapp.com/send/?phone=%2B${deal.contact_whatsapp.replace(/\D/g, "").replace(/^(?!55)/, "55")}&text&type=phone_number&app_absent=0`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
