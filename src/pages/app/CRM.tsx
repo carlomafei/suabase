@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { formatCpf } from "@/lib/business-rules";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -32,6 +33,7 @@ interface Deal {
   contact_id: string | null;
   contact_name?: string;
   contact_whatsapp?: string;
+  contact_cpf_cnpj?: string;
 }
 
 const formatCurrency = (v: number) =>
@@ -125,6 +127,7 @@ const CRM = () => {
         contact_id: d.contact_id,
         contact_name: d.contacts?.name,
         contact_whatsapp: d.contacts?.whatsapp,
+        contact_cpf_cnpj: d.contacts?.cpf_cnpj,
       }))
     );
     setLoading(false);
