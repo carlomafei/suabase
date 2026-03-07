@@ -280,7 +280,7 @@ const CRM = () => {
                           <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
                         )}
                         <div className="mt-1.5">
-                          <div className="flex items-center gap-1 mb-0.5">
+                          <div className="flex items-center gap-1 mb-0">
                             <ShoppingCart className="h-3 w-3 text-muted-foreground" />
                             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-bold">Valor da Compra</span>
                           </div>
