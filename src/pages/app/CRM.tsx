@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, DollarSign, GripVertical, User, Settings2, Check, MessageCircle, ShoppingCart } from "lucide-react";
+import { Loader2, DollarSign, GripVertical, User, Settings2, Check, MessageCircle, ShoppingCart, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -98,6 +98,7 @@ const CRM = () => {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [draggedDeal, setDraggedDeal] = useState<Deal | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -210,12 +211,27 @@ const CRM = () => {
   return (
     <div>
 
+      {/* Search */}
+      <div className="relative max-w-md mb-6">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, CPF, email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-9 h-10 rounded-full border-border bg-background"
+        />
+      </div>
 
-      {/* Kanban Board */}
       <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
         {stages.map((stage) => {
+          const searchLower = searchTerm.toLowerCase();
           const stageDeals = deals
             .filter((d) => d.stage_id === stage.id)
+            .filter((d) => !searchTerm || 
+              (d.contact_name?.toLowerCase().includes(searchLower)) ||
+              (d.contact_cpf_cnpj?.includes(searchTerm)) ||
+              (d.title?.toLowerCase().includes(searchLower))
+            )
             .sort((a, b) => a.position - b.position);
 
           return (
