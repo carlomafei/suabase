@@ -345,15 +345,21 @@ const CRM = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)]">
 
-      {/* Search */}
-      <div className="relative max-w-md mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, CPF, email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 h-10 rounded-md border-border bg-background"
-        />
+      {/* Search + Create */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, CPF, email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-10 rounded-md border-border bg-background"
+          />
+        </div>
+        <Button onClick={() => handleCreateStage(stages.length > 0 ? stages[stages.length - 1].position : -1)} className="h-10 gap-1.5 shrink-0">
+          <Plus className="h-4 w-4" />
+          Criar nova fase
+        </Button>
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
