@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, DollarSign, GripVertical, User, Settings2, Check, MessageCircle, ShoppingCart, Search } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, GripVertical, User, Settings2, Check, MessageCircle, ShoppingCart, Search, ChevronRight, ArrowUpDown, ArrowRightLeft, MoveRight, Plus, Palette } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -39,54 +40,130 @@ interface Deal {
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const StageSettingsPopover = ({ stage, onSave }: { stage: Stage; onSave: (id: string, name: string, color: string) => void }) => {
+type PopoverView = "menu" | "configure" | "sort" | "move-stage" | "move-cards";
+
+const StageSettingsPopover = ({
+  stage,
+  stages,
+  onSave,
+  onDelete,
+  onMoveStage,
+  onSortCards,
+  onCreateStage,
+}: {
+  stage: Stage;
+  stages: Stage[];
+  onSave: (id: string, name: string, color: string) => void;
+  onDelete: (id: string) => void;
+  onMoveStage: (id: string, direction: "left" | "right") => void;
+  onSortCards: (stageId: string, order: "asc" | "desc") => void;
+  onCreateStage: (afterPosition: number) => void;
+}) => {
   const [name, setName] = useState(stage.name);
   const [color, setColor] = useState(stage.color);
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<PopoverView>("menu");
 
   useEffect(() => { setName(stage.name); setColor(stage.color); }, [stage.name, stage.color]);
+  useEffect(() => { if (!open) setView("menu"); }, [open]);
 
   const handleSave = () => {
     if (!name.trim()) return;
     onSave(stage.id, name.trim(), color);
-    setOpen(false);
+    setView("menu");
   };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors">
+        <button className="p-1 rounded hover:bg-white/20 text-white transition-colors">
           <Settings2 className="h-3.5 w-3.5" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-3" align="end">
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Título da fase</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
+      <PopoverContent className="w-56 p-0" align="end">
+        {view === "menu" && (
+          <div className="py-1">
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setView("sort")}>
+              <span className="flex-1 text-left">Ordenar cards da fase</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setView("move-cards")}>
+              <span className="flex-1 text-left">Configurar mover cards</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setView("move-stage")}>
+              <span className="flex-1 text-left">Mover fase para</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => { onCreateStage(stage.position); setOpen(false); }}>
+              <span className="flex-1 text-left">Criar uma nova fase</span>
+            </button>
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-foreground hover:bg-muted transition-colors" onClick={() => setView("configure")}>
+              <span className="flex-1 text-left">Configurar fase</span>
+            </button>
+            <Separator />
+            <button className="w-full flex items-center px-3 py-2.5 text-sm text-destructive hover:bg-muted transition-colors" onClick={() => { onDelete(stage.id); setOpen(false); }}>
+              <span className="flex-1 text-left">Excluir fase</span>
+            </button>
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cor do fundo do cabeçalho</label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {PRESET_COLORS.map((c) => (
-                <button
-                  key={c}
-                  className={cn(
-                    "w-7 h-7 rounded-md border-2 transition-all flex items-center justify-center",
-                    color === c ? "border-foreground scale-110" : "border-transparent hover:scale-105"
-                  )}
-                  style={{ backgroundColor: c }}
-                  onClick={() => setColor(c)}
-                >
-                  {color === c && <Check className="h-3.5 w-3.5 text-white" />}
-                </button>
-              ))}
+        )}
+
+        {view === "configure" && (
+          <div className="p-3 space-y-3">
+            <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setView("menu")}>← Voltar</button>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Título da fase</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="h-8 text-sm" />
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Cor do cabeçalho</label>
+              <div className="grid grid-cols-6 gap-1.5">
+                {PRESET_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    className={cn(
+                      "w-7 h-7 rounded-md border-2 transition-all flex items-center justify-center",
+                      color === c ? "border-foreground scale-110" : "border-transparent hover:scale-105"
+                    )}
+                    style={{ backgroundColor: c }}
+                    onClick={() => setColor(c)}
+                  >
+                    {color === c && <Check className="h-3.5 w-3.5 text-white" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Button size="sm" className="w-full h-8 text-xs" onClick={handleSave}>Salvar</Button>
           </div>
-          <Button size="sm" className="w-full h-8 text-xs" onClick={handleSave}>
-            Salvar
-          </Button>
-        </div>
+        )}
+
+        {view === "sort" && (
+          <div className="py-1">
+            <button className="px-3 py-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setView("menu")}>← Voltar</button>
+            <button className="w-full px-3 py-2.5 text-sm text-foreground hover:bg-muted text-left" onClick={() => { onSortCards(stage.id, "asc"); setOpen(false); }}>Menor valor primeiro</button>
+            <button className="w-full px-3 py-2.5 text-sm text-foreground hover:bg-muted text-left" onClick={() => { onSortCards(stage.id, "desc"); setOpen(false); }}>Maior valor primeiro</button>
+          </div>
+        )}
+
+        {view === "move-stage" && (
+          <div className="py-1">
+            <button className="px-3 py-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setView("menu")}>← Voltar</button>
+            <button className="w-full px-3 py-2.5 text-sm text-foreground hover:bg-muted text-left disabled:opacity-40" disabled={stage.position === 0} onClick={() => { onMoveStage(stage.id, "left"); setOpen(false); }}>← Mover para esquerda</button>
+            <button className="w-full px-3 py-2.5 text-sm text-foreground hover:bg-muted text-left disabled:opacity-40" disabled={stage.position === stages.length - 1} onClick={() => { onMoveStage(stage.id, "right"); setOpen(false); }}>→ Mover para direita</button>
+          </div>
+        )}
+
+        {view === "move-cards" && (
+          <div className="py-1">
+            <button className="px-3 py-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => setView("menu")}>← Voltar</button>
+            {stages.filter((s) => s.id !== stage.id).map((s) => (
+              <button key={s.id} className="w-full px-3 py-2.5 text-sm text-foreground hover:bg-muted text-left flex items-center gap-2" onClick={() => { toast.info(`Mover cards para "${s.name}" — em breve`); setOpen(false); }}>
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                {s.name}
+              </button>
+            ))}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );
