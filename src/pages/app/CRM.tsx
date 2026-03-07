@@ -251,7 +251,7 @@ const CRM = () => {
               >
                 <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: stage.color }} />
                 <span className="font-display font-semibold text-sm flex-1 text-white">{stage.name}</span>
-                <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
+                <Badge variant="secondary" className="text-xs text-white bg-white/20 border-0">{stageDeals.length}</Badge>
                 <StageSettingsPopover stage={stage} onSave={handleStageUpdate} />
               </div>
 
