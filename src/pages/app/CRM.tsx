@@ -267,13 +267,8 @@ const CRM = () => {
                     <div className="flex items-start gap-2">
                       <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{deal.title}</p>
-                        {deal.contact_name && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <User className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground truncate">{deal.contact_name}</span>
-                          </div>
-                        )}
+                        <p className="text-sm font-medium truncate">{deal.contact_name || deal.title}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.title}</p>
                         <div className="flex items-center justify-between mt-1.5">
                           <div className="flex items-center gap-1">
                             <DollarSign className="h-3 w-3 text-primary" />
