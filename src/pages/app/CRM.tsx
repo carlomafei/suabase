@@ -274,9 +274,23 @@ const CRM = () => {
                             <span className="text-xs text-muted-foreground truncate">{deal.contact_name}</span>
                           </div>
                         )}
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <DollarSign className="h-3 w-3 text-primary" />
-                          <span className="text-xs font-medium text-primary">{formatCurrency(deal.value)}</span>
+                        <div className="flex items-center justify-between mt-1.5">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3 w-3 text-primary" />
+                            <span className="text-xs font-medium text-primary">{formatCurrency(deal.value)}</span>
+                          </div>
+                          {deal.contact_whatsapp && (
+                            <a
+                              href={`https://wa.me/${deal.contact_whatsapp.replace(/\D/g, "")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1 rounded-md hover:bg-green-500/10 text-green-600 transition-colors"
+                              title="Abrir WhatsApp"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </a>
+                          )}
                         </div>
                       </div>
                     </div>
