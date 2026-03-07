@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Loader2, DollarSign, GripVertical, User, Settings2, Check, MessageCircle } from "lucide-react";
+import { Loader2, DollarSign, GripVertical, User, Settings2, Check, MessageCircle, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
