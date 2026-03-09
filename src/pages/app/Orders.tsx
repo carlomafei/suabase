@@ -412,7 +412,7 @@ const Orders = () => {
                   </TableBody>
                 </Table>
               </div>
-            </Card>
+            </div>
           )}
         </div>
 
