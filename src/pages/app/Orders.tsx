@@ -331,7 +331,7 @@ const Orders = () => {
               <p className="text-xs text-muted-foreground mt-1">Configure a integração com o Bling para sincronizar pedidos.</p>
             </Card>
           ) : (
-            <Card className="border-border/50 overflow-hidden">
+            <div className="rounded-xl border border-border/50 overflow-hidden">
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
