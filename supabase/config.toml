@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.bling-oauth-callback]
 verify_jwt = false
+
+[functions.datafy-whatsapp]
+verify_jwt = false
