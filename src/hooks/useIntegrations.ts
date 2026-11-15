@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useTenant } from "./useTenant";
 
-export type IntegrationProvider = "bling" | "tiny" | "data_broker" | "deskdata" | "whatsapp_meta";
+export type IntegrationProvider = "bling" | "tiny" | "data_broker" | "deskdata" | "whatsapp_meta" | "whatsapp_datafy";
 
 export type IntegrationCategory = "erp" | "data_broker" | "whatsapp";
 
@@ -73,6 +73,18 @@ export const PROVIDER_CONFIGS: ProviderConfig[] = [
     credentialFields: [
       { key: "username", label: "Usuário", type: "text", placeholder: "Usuário da conta Deskdata" },
       { key: "password", label: "Senha", type: "password", placeholder: "Senha da conta Deskdata" },
+    ],
+  },
+  {
+    id: "whatsapp_datafy",
+    name: "WhatsApp (Datafy)",
+    category: "whatsapp",
+    description: "API oficial do WhatsApp via Datafy. No painel da Datafy, cadastre o webhook apontando para a função whatsapp do Supabase.",
+    available: true,
+    credentialFields: [
+      { key: "phone_number_id", label: "Phone Number ID", type: "text", placeholder: "ID do número (GET /me na Datafy)" },
+      { key: "api_token", label: "Token do canal", type: "password", placeholder: "sk_live_..." },
+      { key: "webhook_secret", label: "Webhook Secret", type: "password", placeholder: "whsec_..." },
     ],
   },
   {
